@@ -5,9 +5,9 @@ import { z } from "zod";
 
 const idSchema = z.string().uuid("Invalid paper ID format");
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest) {
   try {
-    const id = idSchema.parse(params.id);
+    const id = req.nextUrl.pathname.split("/").pop()!;
     const paper = await prisma.researchPaper.findUnique({
       where: { id },
       include: {
@@ -28,9 +28,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest) {
   try {
-    const id = idSchema.parse(params.id);
+    const id = req.nextUrl.pathname.split("/").pop()!;
     const body = await req.json();
     const { title, abstract, filePath, keywords, status, reviewerStatus } = body;
 
@@ -61,9 +61,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest) {
   try {
-    const id = idSchema.parse(params.id);
+    const id = req.nextUrl.pathname.split("/").pop()!;
 
     const deletedPaper = await prisma.researchPaper.delete({
       where: { id },

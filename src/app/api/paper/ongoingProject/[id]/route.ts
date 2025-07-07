@@ -32,9 +32,9 @@ const reviewerActionSchema = z.object({
 // ─────────────────────────────────────────────
 // GET: Fetch single project by ID
 // ─────────────────────────────────────────────
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET( req: NextRequest) {
   try {
-    const id = idSchema.parse(params.id);
+   const id = req.nextUrl.pathname.split("/").pop()!;
     
     const project = await prisma.onGoingProject.findUnique({
       where: { id },
@@ -68,9 +68,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 // ─────────────────────────────────────────────
 // PUT: Update single project by ID
 // ─────────────────────────────────────────────
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest) {
   try {
-    const id = idSchema.parse(params.id);
+   const id = req.nextUrl.pathname.split("/").pop()!;
     const body = await req.json();
 
     // Check if this is a reviewer action
@@ -218,10 +218,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 // ─────────────────────────────────────────────
 // DELETE: Delete single project by ID
 // ─────────────────────────────────────────────
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest) {
   try {
-    const id = idSchema.parse(params.id);
-
+   const id = req.nextUrl.pathname.split("/").pop()!;
     // Check if project exists
     const existingProject = await prisma.onGoingProject.findUnique({
       where: { id },

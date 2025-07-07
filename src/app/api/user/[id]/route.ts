@@ -1,9 +1,9 @@
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
-  const { id } = await params;
-  
+export async function GET(request: NextRequest) {
+  const id = request.nextUrl.pathname.split("/").pop()!;
+
   console.log("Fetching user with ID:", id);
 
   if (!id) {
@@ -106,8 +106,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
 }
 
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-  const { id } = await params;
+export async function PUT(req: NextRequest) {
+  const id = req.nextUrl.pathname.split("/").pop()!;
   const body = await req.json();
 
   try {
@@ -125,8 +125,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const { id } = await params;
+export async function DELETE(req: NextRequest) {
+  const id = req.nextUrl.pathname.split("/").pop()!;
 
   try {
     const existingUser = await prisma.user.findUnique({ where: { id } });
