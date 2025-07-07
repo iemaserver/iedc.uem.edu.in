@@ -3,10 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function PUT(
     req: NextRequest,
-    { params }: { params: { id: string } }
 ) {
-    const { id } = params;
-    
+    const id = req.nextUrl.pathname.split("/").pop()!;
+
     if (!id) {
         return NextResponse.json({ error: "Missing achievement ID" }, { status: 400 });
     }
@@ -53,10 +52,10 @@ export async function PUT(
 
 export async function GET(
     req: NextRequest,
-    { params }: { params: { id: string } }
-) {
-    const { id } = params;
     
+) {
+    const id = req.nextUrl.pathname.split("/").pop()!;
+
     if (!id) {
         return NextResponse.json({ error: "Missing achievement ID" }, { status: 400 });
     }
@@ -78,11 +77,10 @@ export async function GET(
 }
 
 export async function DELETE(
-    req: NextRequest,
-    { params }: { params: { id: string } }
+    req: NextRequest
 ) {
-    const { id } = params;
-    
+    const id = req.nextUrl.pathname.split("/").pop()!;
+
     if (!id) {
         return NextResponse.json({ error: "Missing achievement ID" }, { status: 400 });
     }
