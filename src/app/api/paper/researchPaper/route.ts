@@ -83,34 +83,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Use transaction to ensure data consistency
+    // Fetch related data first (outside transaction)
+    const authors = await prisma.user.findMany({
+      where: { name: { in: authorNames } },
+      select: { id: true },
+    });
+
+    if (authors.length !== authorNames.length) {
+      return NextResponse.json({ error: "One or more authors not found" }, { status: 400 });
+    }
+
+    const facultyAdvisors = await prisma.user.findMany({
+      where: { name: { in: facultyAdvisorNames || [] } },
+      select: { id: true },
+    });
+
+    let reviewer = null;
+    if (reviewerName) {
+      reviewer = await prisma.user.findFirst({
+        where: { 
+          name: reviewerName,
+          ...(reviewerEmail ? { email: reviewerEmail } : {})
+        },
+        select: { id: true },
+      });
+
+      if (!reviewer) {
+        return NextResponse.json({ error: "Reviewer not found" }, { status: 400 });
+      }
+    }
+
+    // Use transaction only for the creation with increased timeout
     const paper = await prisma.$transaction(async (prisma) => {
-      const authors = await prisma.user.findMany({
-        where: { name: { in: authorNames } },
-        select: { id: true },
-      });
-
-      if (authors.length !== authorNames.length) {
-        throw new Error("One or more authors not found");
-      }
-
-      const facultyAdvisors = await prisma.user.findMany({
-        where: { name: { in: facultyAdvisorNames || [] } },
-        select: { id: true },
-      });
-
-      let reviewer = null;
-      if (reviewerName) {
-        reviewer = await prisma.user.findUnique({
-          where: { name: reviewerName, email: reviewerEmail },
-          select: { id: true },
-        });
-
-        if (!reviewer) {
-          throw new Error("Reviewer not found");
-        }
-      }
-
       return await prisma.researchPaper.create({
         data: {
           title,
@@ -131,6 +135,8 @@ export async function POST(req: NextRequest) {
           reviewer: { select: { id: true, name: true, email: true } },
         },
       });
+    }, {
+      timeout: 10000, // 10 seconds timeout
     });
 
     return NextResponse.json({ message: "Paper uploaded successfully", paper }, { status: 201 });

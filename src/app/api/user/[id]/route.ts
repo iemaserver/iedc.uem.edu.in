@@ -11,73 +11,25 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // First, get basic user info
     const user = await prisma.user.findUnique({
       where: { id },
-      include: {
-        // User's own projects (as member)
-        projectMemberships: {
-          include: {
-            members: { select: { id: true, name: true, email: true } },
-            facultyAdvisors: { select: { id: true, name: true, email: true } },
-            reviewer: { select: { id: true, name: true, email: true } },
-          },
-          orderBy: { createdAt: "desc" },
-        },
-        // Projects the user is advising (as faculty)
-        advisedProjects: {
-          include: {
-            members: { select: { id: true, name: true, email: true } },
-            facultyAdvisors: { select: { id: true, name: true, email: true } },
-            reviewer: { select: { id: true, name: true, email: true } },
-          },
-          orderBy: { createdAt: "desc" },
-        },
-        // Projects the user is reviewing
-        reviewedProjects: {
-          include: {
-            members: { select: { id: true, name: true, email: true } },
-            facultyAdvisors: { select: { id: true, name: true, email: true } },
-          },
-          orderBy: { createdAt: "desc" },
-        },
-        // User's own papers (as author)
-        Paper: {
-          include: {
-            author: { select: { id: true, name: true, email: true } },
-            facultyAdvisors: { select: { id: true, name: true, email: true } },
-            reviewer: { select: { id: true, name: true, email: true } },
-          },
-          orderBy: { submissionDate: "desc" },
-        },
-        // Papers the user is advising (as faculty)
-        facultyAdvisorPapers: {
-          include: {
-            author: { select: { id: true, name: true, email: true } },
-            facultyAdvisors: { select: { id: true, name: true, email: true } },
-            reviewer: { select: { id: true, name: true, email: true } },
-          },
-          orderBy: { submissionDate: "desc" },
-        },
-        // Papers the user is reviewing
-        reviewedPapers: {
-          include: {
-            author: { select: { id: true, name: true, email: true } },
-            facultyAdvisors: { select: { id: true, name: true, email: true } },
-          },
-          orderBy: { submissionDate: "desc" },
-        },
-   
-        // Count statistics
-        _count: {
-          select: {
-            projectMemberships: true,
-            advisedProjects: true,
-            reviewedProjects: true,
-            Paper: true,
-            facultyAdvisorPapers: true,
-            reviewedPapers: true,
-          },
-        },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        userType: true,
+        isVerified: true,
+        createdAt: true,
+        updatedAt: true,
+        department: true,
+        university: true,
+        degree: true,
+        year: true,
+        position: true,
+        areaOfInterest: true,
+        profileImage: true,
+        // Don't include sensitive data
       },
     });
 
@@ -85,17 +37,44 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Remove sensitive data
-    const { password, resetToken, verificationCode, ...safeUser } = user;
+    // Get counts separately for better performance
+    const [
+      projectMembershipsCount,
+      advisedProjectsCount,
+      reviewedProjectsCount,
+      authoredPapersCount,
+      advisedPapersCount,
+      reviewedPapersCount,
+    ] = await Promise.all([
+      prisma.onGoingProject.count({
+        where: { members: { some: { id: user.id } } },
+      }),
+      prisma.onGoingProject.count({
+        where: { facultyAdvisors: { some: { id: user.id } } },
+      }),
+      prisma.onGoingProject.count({
+        where: { reviewerId: user.id },
+      }),
+      prisma.researchPaper.count({
+        where: { author: { some: { id: user.id } } },
+      }),
+      prisma.researchPaper.count({
+        where: { facultyAdvisors: { some: { id: user.id } } },
+      }),
+      prisma.researchPaper.count({
+        where: { reviewerId: user.id },
+      }),
+    ]);
+
     return NextResponse.json({
-      user: safeUser,
+      user,
       statistics: {
-        totalProjectsAsMember: user._count?.projectMemberships ?? 0,
-        totalProjectsAsAdvisor: user._count?.advisedProjects ?? 0,
-        totalProjectsAsReviewer: user._count?.reviewedProjects ?? 0,
-        totalPapersAsAuthor: user._count?.Paper ?? 0,
-        totalPapersAsAdvisor: user._count?.facultyAdvisorPapers ?? 0,
-        totalPapersAsReviewer: user._count?.reviewedPapers ?? 0,
+        totalProjectsAsMember: projectMembershipsCount,
+        totalProjectsAsAdvisor: advisedProjectsCount,
+        totalProjectsAsReviewer: reviewedProjectsCount,
+        totalPapersAsAuthor: authoredPapersCount,
+        totalPapersAsAdvisor: advisedPapersCount,
+        totalPapersAsReviewer: reviewedPapersCount,
       },
     });
   }

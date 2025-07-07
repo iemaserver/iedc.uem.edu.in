@@ -197,57 +197,6 @@ export default function DataTableAdmin() {
     }
   };
 
-  const assignReviewer = async (projectId: string, reviewerId: string) => {
-    if (!session?.user?.id) {
-      toast.error("You must be logged in to perform this action");
-      return;
-    }
-
-    setAssigningReviewer(true);
-    try {
-      const response = await axios.post(`/api/paper/ongoingProject/reviewer-assignment`, {
-        projectId,
-        reviewerId,
-        adminId: session.user.id,
-      });
-      
-      console.log(`Reviewer assigned to project ${projectId}`);
-      toast.success("Reviewer assigned successfully");
-      fetchData();
-    } catch (error: any) {
-      console.error("Error assigning reviewer:", error);
-      toast.error(error.response?.data?.error || "Failed to assign reviewer. Please try again.");
-    } finally {
-      setAssigningReviewer(false);
-    }
-  };
-
-  const reassignReviewer = async (projectId: string, newReviewerId: string, reason?: string) => {
-    if (!session?.user?.id) {
-      toast.error("You must be logged in to perform this action");
-      return;
-    }
-
-    setAssigningReviewer(true);
-    try {
-      const response = await axios.put(`/api/paper/ongoingProject/reviewer-assignment`, {
-        projectId,
-        newReviewerId,
-        adminId: session.user.id,
-        reason,
-      });
-      
-      console.log(`Reviewer reassigned for project ${projectId}`);
-      toast.success("Reviewer reassigned successfully");
-      fetchData();
-    } catch (error: any) {
-      console.error("Error reassigning reviewer:", error);
-      toast.error(error.response?.data?.error || "Failed to reassign reviewer. Please try again.");
-    } finally {
-      setAssigningReviewer(false);
-    }
-  };
-
   const bulkUpdateStatus = async (status: string) => {
     const selectedIds = table
       .getFilteredSelectedRowModel()
@@ -401,50 +350,7 @@ export default function DataTableAdmin() {
         );
       },
     },
-    {
-      accessorKey: "projectTags",
-      header: () => <div className="text-left">Project Tags</div>,
-      cell: ({ row }) => (
-        <div className="flex flex-wrap gap-1">
-          {Array.isArray(row.getValue("projectTags"))
-            ? (row.getValue("projectTags") as string[]).map((tag, index) => (
-                <Badge key={index} variant="outline" className="text-xs">
-                  {tag}
-                </Badge>
-              ))
-            : typeof row.getValue("projectTags") === "string"
-              ? <Badge variant="outline" className="text-xs">{row.getValue("projectTags") as string}</Badge>
-              : null}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "projectImage",
-      header: () => <div className="text-left">Project Image</div>,
-      cell: ({ row }) => (
-        <div className="lowercase">
-          <img
-            src={row.getValue("projectImage") as string}
-            alt="Project"
-            className="w-16 h-16 object-cover"
-          />
-        </div>
-      ),
-    },
-    {
-        accessorKey: "projectType",
-        header: () => <div className="text-left">Project Type</div>,
-        cell: ({ row }) => {
-          const projectType = row.original.projectType || "not-declared";
-          return (
-            <div className="lowercase">
-              {
-                <span>{projectType}</span>
-              }
-            </div>
-          );
-        },
-    },
+
     {
       accessorKey: "projectLink",
       header: () => <div className="text-left">Project Link</div>,
@@ -529,9 +435,6 @@ export default function DataTableAdmin() {
           <ActionsCell
             ongoingProject={row.original}
             fetchData={fetchData}
-            reviewers={reviewers}
-            assignReviewer={assignReviewer}
-            reassignReviewer={reassignReviewer}
           />
         );
       },
@@ -797,15 +700,9 @@ export default function DataTableAdmin() {
 function ActionsCell({
   ongoingProject,
   fetchData,
-  reviewers,
-  assignReviewer,
-  reassignReviewer,
 }: {
   ongoingProject: OnGoingProjectWithAuthor;
   fetchData: () => void;
-  reviewers: User[];
-  assignReviewer: (projectId: string, reviewerId: string) => void;
-  reassignReviewer: (projectId: string, newReviewerId: string, reason?: string) => void;
 }) {
   const { data: session } = useSession();
   const [open, setOpen] = React.useState(false);
@@ -852,73 +749,6 @@ function ActionsCell({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {!ongoingProject.reviewer && (
-          <DropdownMenuItem>
-            <Popover open={reviewerOpen} onOpenChange={setReviewerOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" className="w-full justify-start p-0 h-auto">
-                  <Check className="mr-2 h-4 w-4" />
-                  Assign Reviewer
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <div className="space-y-2">
-                  <h4 className="font-medium">Select Reviewer</h4>
-                  {reviewers.map((reviewer) => (
-                    <Button
-                      key={reviewer.id}
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
-                      onClick={() => {
-                        assignReviewer(ongoingProject.id, reviewer.id);
-                        setReviewerOpen(false);
-                        setOpen(false);
-                      }}
-                    >
-                      {reviewer.name} ({reviewer.email})
-                    </Button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-          </DropdownMenuItem>
-        )}
-        
-        {ongoingProject.reviewer && (
-          <DropdownMenuItem>
-            <Popover open={reviewerOpen} onOpenChange={setReviewerOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" className="w-full justify-start p-0 h-auto">
-                  <ArrowUpDown className="mr-2 h-4 w-4" />
-                  Reassign Reviewer
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <div className="space-y-2">
-                  <h4 className="font-medium">Current: {ongoingProject.reviewer.name}</h4>
-                  <h5 className="text-sm">Select New Reviewer</h5>
-                  {reviewers.filter(r => r.id !== ongoingProject.reviewer?.id).map((reviewer) => (
-                    <Button
-                      key={reviewer.id}
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
-                      onClick={() => {
-                        reassignReviewer(ongoingProject.id, reviewer.id, "Admin reassignment");
-                        setReviewerOpen(false);
-                        setOpen(false);
-                      }}
-                    >
-                      {reviewer.name} ({reviewer.email})
-                    </Button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-          </DropdownMenuItem>
-        )}
-        
         <DropdownMenuItem onClick={() => handleAdminAction('accept')} disabled={loading}>
           <Ticket className="mr-2 h-4 w-4" />
           Accept Project

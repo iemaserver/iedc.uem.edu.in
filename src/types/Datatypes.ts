@@ -41,9 +41,8 @@ export const DashboardItems = [
     icon: AreaChart,
     access: ["FACULTY"],
     items: [
-      { title: "Research Paper ",icon:LucidePaperclip, url: "dashboard/paper" },
-      { title: "Ongoing Project ",icon:Container, url: "dashboard/project" },
-      
+      { title: "Research Paper ",icon:LucidePaperclip, url: "dashboard/faculty/paper" },
+      { title: "Ongoing Project ",icon:Container, url: "dashboard/faculty/project" },
     ],
   },
   {
