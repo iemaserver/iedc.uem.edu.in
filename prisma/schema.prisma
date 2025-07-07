@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "cockroachdb"
+  url      = env("DATABASE_URL")
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// MODELS
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id                     String    @id @default(uuid())
+  name                   String   
+  email                  String    @unique
+  facultyAcademicDetails String?
+  facultyResearchInterests String?
+  password               String?
+  degree                 String?
+  year                   Int?
+  department             String?
+  university             String?
+  areaOfInterest         String[]
+  position               String?
+  profileImage           String?
+  resetToken             String?   @unique
+  resetTokenExpiry       DateTime?
+  isVerified             Boolean   @default(false)
+  userType               UserType  @default(STUDENT)
+  verificationCode       String?
+  verificationCodeExpiry DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  Paper                  ResearchPaper[] @relation("PaperAuthors")
+  facultyAdvisorPapers   ResearchPaper[] @relation("PaperFacultyAdvisors")
+  reviewedPapers         ResearchPaper[] @relation("PaperReviewer")
+  advisedProjects        OnGoingProject[] @relation("UserFacultyAdvisor")
+  projectMemberships     OnGoingProject[] @relation("ProjectMembers")
+  reviewedProjects       OnGoingProject[] @relation("ProjectReviewer")
+}
+
+enum UserType {
+  STUDENT
+  FACULTY
+  ADMIN
+}
+
+enum ReviewerStatus {
+  ACCEPTED
+  REJECTED
+  PENDING
+  ONGOING
+  ACCEPTED_FOR_PUBLISH
+  REJECTED_FOR_PUBLISH
+  NEEDS_UPDATES // For when reviewer requests student to make changes
+}
+
+
+enum PaperStatus {
+  UPLOAD
+  ON_REVIEW
+  PUBLISH
+  REJECT
+}
+
+
+model ResearchPaper {
+  id              String      @id @default(uuid())
+  title           String
+  abstract        String
+  filePath        String
+  author          User[]      @relation("PaperAuthors")
+  keywords        String[]
+  submissionDate  DateTime    @default(now())
+  lastUpdated     DateTime    @updatedAt
+  reviewer        User?       @relation("PaperReviewer", fields: [reviewerId], references: [id])
+  reviewerId      String?
+  status          PaperStatus @default(UPLOAD)
+  reviewerStatus  ReviewerStatus @default(PENDING)
+  facultyAdvisors User[]      @relation("PaperFacultyAdvisors")
+}
+
+
+model Achievement {
+  id                 String   @id @default(uuid())
+  title              String
+  description        String
+  image              String?
+  link               String?
+  achievementDate    DateTime
+  category           String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  homePageVisibility Boolean  @default(false)
+  
+  
+ 
+}
+
+model UserDetails {
+  id       String   @id @default(uuid())
+  email    String   @unique
+  name     String  
+  userType UserType
+}
+
+
+
+
+model OnGoingProject{
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  facultyAdvisors User[] @relation("UserFacultyAdvisor")
+  projectLink String?
+  projectImage String?
+  projectType String?
+  projectTags String[]
+  startDate   DateTime @default(now())
+  endDate     DateTime?
+  status      ProjectStatus @default(UPLOAD)
+  members     User[]   @relation("ProjectMembers")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Reviewer fields
+  reviewer    User?    @relation("ProjectReviewer", fields: [reviewerId], references: [id])
+  reviewerId  String?
+  reviewerStatus ReviewerStatus @default(PENDING)
+  reviewerComments String?
+  reviewedAt  DateTime?
+  
+  // Student update fields (when reviewer requests changes)
+  needsUpdate Boolean @default(false)
+  updateRequest String? // Reviewer's request for updates
+  updateDeadline DateTime? // Deadline for student updates
+  studentUpdateComments String? // Student's response to update request
+  studentUpdatedAt DateTime? // When student last updated
+}
+
+
+
+
+enum ProjectStatus {
+  UPLOAD
+  PUBLISH
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
