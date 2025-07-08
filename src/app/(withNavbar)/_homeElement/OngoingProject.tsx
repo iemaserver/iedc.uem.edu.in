@@ -33,32 +33,11 @@ interface OnGoingProjectWithRelations extends PrismaOnGoingProject {
   status: ProjectStatus;
 }
 
-function CarouselOngoingProject() {
-  // Use the new type for state
-  const [ongoingProjectData, setOngoingProjectData] = useState<
-    OnGoingProjectWithRelations[]
-  >([]);
+function CarouselOngoingProject({ongoingProjectData}: {ongoingProjectData?: OnGoingProjectWithRelations[]}) {
 
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchOngoingProjects = async () => {
-      try {
-        setIsLoading(true);
-        // We can add a filter to only show 'PUBLISH' or 'ONGOING' projects if needed
-        // For example: `/api/paper/ongoingProject?status=PUBLISH`
-        const response = await axios.get("/api/paper/ongoingProject");
-        console.log("ongoing project response is ", response.data);
-        setOngoingProjectData(response.data.data);
-      } catch (error) {
-        console.error("Failed to fetch ongoing projects:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchOngoingProjects();
-  }, []);
 
+  
   // Format the date to a more readable format
   const formatDate = (dateString: string | Date): string => {
     if (!dateString) return "N/A";
@@ -89,16 +68,8 @@ function CarouselOngoingProject() {
           This is where the map function and conditional rendering should be.
           The CarouselItem and its content MUST be inside the map.
         */}
-        {isLoading ? (
-          <CarouselItem className="w-full h-full flex items-center justify-center">
-            <div className="flex flex-col items-center justify-center space-y-4">
-              {/* A simple spinner animation can be added here */}
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-              <p className="text-lg text-gray-600">Loading projects...</p>
-            </div>
-          </CarouselItem>
-        ) : ongoingProjectData.length > 0 ? (
-          ongoingProjectData.map((project) => (
+        { (ongoingProjectData?.length ?? 0) > 0 ? (
+          (ongoingProjectData ?? []).map((project) => (
             // Use project.id as key for stability
             <CarouselItem key={project.id} className="w-full h-full">
               <div className="p-1 w-full h-full">
@@ -227,7 +198,7 @@ function CarouselOngoingProject() {
         )}
       </CarouselContent>
       {/* Conditionally render navigation buttons */}
-      {ongoingProjectData.length > 1 && (
+      {(ongoingProjectData?.length ?? 0) > 1 && (
         <>
           <CarouselPrevious className="left-2 top-1/2 -translate-y-1/2" />
           <CarouselNext className="right-2 top-1/2 -translate-y-1/2" />
@@ -237,13 +208,13 @@ function CarouselOngoingProject() {
   );
 }
 
-// The main component remains the same, but now it renders the enhanced Carousel
-const OngoingProject = () => {
+// The main component now accepts and passes through the ongoingProjectData prop
+const OngoingProject = ({ ongoingProjectData }: { ongoingProjectData?: OnGoingProjectWithRelations[] }) => {
   return (
     <div className="w-full h-full flex flex-col items-center justify-start p-3 md:px-7 xl:px-16 pb-10">
       <h1 className="text-4xl font-bold text-center mb-4">Ongoing Projects</h1>
       <div className="w-full aspect-square md:aspect-auto md:h-[80vh] lg:h-[85vh] flex items-center justify-center">
-        <CarouselOngoingProject />
+        <CarouselOngoingProject ongoingProjectData={ongoingProjectData} />
       </div>
     </div>
   );

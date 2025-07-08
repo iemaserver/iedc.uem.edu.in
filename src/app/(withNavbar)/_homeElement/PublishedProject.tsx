@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import {
   Carousel,
   CarouselContent,
@@ -11,40 +11,18 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
+import { ResearchPaper } from "@prisma/client";
+import { ResearchPaperWithRelations } from "../page";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { DownloadIcon } from "lucide-react";
+import Link from "next/link";
 
-// Placeholder type for paper data - adjust based on your actual schema
-interface PublishedPaper {
-  id: string;
-  title: string;
-  description?: string;
-  authors?: string[];
-  publishedDate?: string;
-  journal?: string;
-  doi?: string;
-}
-
-export function CarouselPublishedProject() {
-  const [papers, setPapers] = useState<PublishedPaper[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchPapers = async () => {
-      try {
-        setIsLoading(true);
-        // Adjust this endpoint based on your actual API
-        // For now, using a placeholder until you have a papers API
-        const response = await axios.get("/api/paper/published");
-        setPapers(response.data.data || []);
-      } catch (error) {
-        console.error("Failed to fetch published papers:", error);
-        setPapers([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchPapers();
-  }, []);
-
+export function CarouselPublishedProject({
+  paper,
+}: {
+  paper: ResearchPaperWithRelations[];
+}) {
   return (
     <Carousel
       opts={{
@@ -56,44 +34,93 @@ export function CarouselPublishedProject() {
           delay: 3000,
         }),
       ]}
-      className="w-full h-full p-3"
+      className="w-full h-[34rem] p-3"
     >
       <CarouselContent>
-        {isLoading ? (
-          <CarouselItem className="w-full h-full flex items-center justify-center">
-            <div className="flex flex-col items-center justify-center space-y-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-              <p className="text-lg text-gray-600">Loading published papers...</p>
-            </div>
-          </CarouselItem>
-        ) : papers.length > 0 ? (
-          papers.map((paper, index) => (
-            <CarouselItem key={paper.id || index} className="w-full h-full lg:basis-1/2">
+        {paper.length > 0 ? (
+          paper.map((paper, index) => (
+            <CarouselItem
+              key={paper.id || index}
+              className="w-full h-full lg:basis-1/2"
+            >
               <div className="p-1 w-full h-full">
                 <Card className="w-full h-full">
-                  <CardContent className="flex w-full h-full flex-col items-center justify-center p-6">
-                    <h3 className="text-xl font-bold mb-2 text-center">{paper.title}</h3>
-                    {paper.description && (
-                      <p className="text-sm text-gray-600 mb-2 text-center line-clamp-3">
-                        {paper.description}
+                  <CardHeader>
+                    <h2 className="text-lg font-semibold text-center">
+                      {paper.title}
+                    </h2>
+                  </CardHeader>
+                  <CardContent className="flex w-full h-full flex-col items-center justify-center p-6 gap-4">
+                    {paper.abstract && (
+                      <p className=" text-gray-600 mb-2 text-center line-clamp-3">
+                        {paper.abstract.length > 400
+                          ? `${paper.abstract.slice(0, 400)}...`
+                          : paper.abstract}
                       </p>
                     )}
-                    {paper.authors && (
-                      <p className="text-xs text-gray-500 mb-2">
-                        Authors: {paper.authors.join(", ")}
+                    {paper.author.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {paper.author.map((author) => (
+                          <Badge
+                            key={author.id}
+                            variant="outline"
+                            className="text-sm font-semibold mb-2"
+                          >
+                            {author.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+
+                    {paper.facultyAdvisors &&
+                      paper.facultyAdvisors.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          Faculty Advisors : 
+                          {paper.facultyAdvisors.map((advisor) => (
+                            <Badge
+                              key={advisor.id}
+                              variant="outline"
+                              className="text-sm font-semibold mb-2"
+                            >
+                              {advisor.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    {paper.reviewer && (
+                      <p className="text-lg text-gray-500">
+                        Reviewers: {paper.reviewer.name}
                       </p>
                     )}
-                    {paper.journal && (
-                      <p className="text-xs text-gray-500 mb-2">
-                        Published in: {paper.journal}
-                      </p>
-                    )}
-                    {paper.publishedDate && (
-                      <p className="text-xs text-gray-500">
-                        Date: {new Date(paper.publishedDate).toLocaleDateString()}
+                    {paper.submissionDate && (
+                      <p className="text-xs text-gray-400 mt-2">
+                        Published on:{" "}
+                        {new Date(paper.submissionDate).toLocaleDateString()}
                       </p>
                     )}
                   </CardContent>
+                  <CardFooter>
+                    <div className="flex justify-between w-full">
+                      <Button variant="outline">
+                        <Link
+                          href={`/paper/${paper.id}`}
+                          className="flex items-center"
+                        >
+                          View Details
+                        </Link>
+                      </Button>
+                      <Button variant="default">
+                        
+                        <a
+                          href={paper.filePath}
+                          target="_blank"
+                          rel="noopener noreferrer">
+                            <DownloadIcon className="w-4 h-4 mr-2 inline" />
+                            Download
+                          </a>
+                        </Button>
+                    </div>
+                  </CardFooter>
                 </Card>
               </div>
             </CarouselItem>
@@ -101,13 +128,17 @@ export function CarouselPublishedProject() {
         ) : (
           <CarouselItem className="w-full h-full flex items-center justify-center">
             <div className="text-center">
-              <p className="text-gray-500 text-lg mb-2">No published papers found.</p>
-              <p className="text-gray-400 text-sm">Check back later for updates.</p>
+              <p className="text-gray-500 text-lg mb-2">
+                No published papers found.
+              </p>
+              <p className="text-gray-400 text-sm">
+                Check back later for updates.
+              </p>
             </div>
           </CarouselItem>
         )}
       </CarouselContent>
-      {papers.length > 1 && (
+      {paper.length > 1 && (
         <>
           <CarouselPrevious className="left-2 top-1/2 -translate-y-1/2" />
           <CarouselNext className="right-2 top-1/2 -translate-y-1/2" />
@@ -117,16 +148,21 @@ export function CarouselPublishedProject() {
   );
 }
 
-const PublishedProject = () => {
+const PublishedProject = ({
+  paper,
+}: {
+  paper: ResearchPaperWithRelations[];
+}) => {
   return (
     <div className="w-full h-full flex flex-col items-center justify-start p-3 md:px-7 xl:px-16 pb-10">
-      <h1 className="text-3xl font-bold text-center mb-4">Recent Published Papers</h1>
+      <h1 className="text-3xl font-bold text-center mb-4">
+        Recent Published Papers
+      </h1>
       <div className="w-full aspect-square md:aspect-auto md:h-[80vh] lg:h-[85vh] flex items-center justify-center">
-        <CarouselPublishedProject />
+        <CarouselPublishedProject paper={paper} />
       </div>
     </div>
   );
 };
 
 export default PublishedProject;
-

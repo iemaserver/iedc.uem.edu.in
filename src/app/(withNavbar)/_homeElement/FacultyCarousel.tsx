@@ -59,29 +59,44 @@ import Image from "next/image";
 //   transform: translateY(0);
 // }
 
-const FacultyCarousel = () => {
-  // FIX: Removed `facultyData` from the dependency array to prevent an infinite loop.
-  const [facultyData, setFacultyData] = useState<User[] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchFacultyData = async () => {
-      try {
-        setIsLoading(true);
-        const response = await axios.get("/api/user?userType=ADMIN");
-        if (response.status === 200) {
-          console.log("Fetched faculty data:", response.data);
-          setFacultyData(response.data.data);
-        }
-      } catch (error) {
-        console.error("Error fetching faculty data:", error);
-        setFacultyData(null); // Set to null on error
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchFacultyData();
-  }, []); // Empty dependency array means this effect runs only once on mount
+
+
+export const FacultyData = [
+  {
+    id: "1",
+    name: "Dr. John Doe",
+    position: "Professor of Computer Science",
+    profileImage: "/user.jpg", // Replace with actual image path
+  },
+  {
+    id: "2",
+    name: "Dr. Jane Smith",
+    position: "Associate Professor of Mathematics",
+    profileImage: "/user.jpg", // Replace with actual image path
+  },
+  {
+    id: "3",
+    name: "Dr. Emily Johnson",
+    position: "Assistant Professor of Physics",
+    profileImage: "/user.jpg", // Replace with actual image path
+  }
+  ,{
+    id: "4",
+    name: "Dr. Michael Brown",
+    position: "Professor of Chemistry",
+    profileImage: "/user.jpg", // Replace with actual image path
+  },
+  {
+    id: "5",
+    name: "Dr. Sarah Davis",
+    position: "Associate Professor of Biology",
+    profileImage: "/user.jpg", // Replace with actual image path
+  }
+]
+
+const FacultyCarousel = () => {
+ 
 
   const plugin = React.useRef(
     Autoplay({ delay: 3000, stopOnInteraction: false })
@@ -97,12 +112,8 @@ const FacultyCarousel = () => {
         className="w-full h-[20rem]"
       >
         <CarouselContent className="h-full">
-          {isLoading ? (
-            <CarouselItem className="w-full h-full flex items-center justify-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-            </CarouselItem>
-          ) : facultyData && facultyData.length > 0 ? (
-            facultyData.map((faculty, index) => (
+          {FacultyData && FacultyData.length > 0 ? (
+            FacultyData.map((faculty, index) => (
               <CarouselItem
                 key={faculty.id || index}
                 className="md:basis-1/2 lg:basis-1/3"

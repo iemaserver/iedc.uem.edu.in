@@ -1,9 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 import Footer from "./Footer";
+import { Achievement } from "@prisma/client";
+import axios from "axios";
 
 export default function DynamicLayout({
   children,
@@ -13,6 +15,7 @@ export default function DynamicLayout({
   const topBarRef = React.useRef<HTMLDivElement>(null);
   const [topBarHeight, setTopBarHeight] = React.useState<number | null>(null);
   const [isClient, setIsClient] = React.useState(false);
+  const [achievements, setAchievements] = React.useState<Achievement[]>([]);
 
   React.useEffect(() => {
     setIsClient(true);
@@ -31,6 +34,28 @@ export default function DynamicLayout({
     // Clean up the event listener when the component unmounts
     return () => window.removeEventListener("resize", updateHeight);
   }, []); // Empty dependency array means this effect runs once after the initial render
+
+  useEffect(() => {
+    try{
+      const fetchAchievements = async () => {
+        const response = await axios.get("/api/user/admin/achievement");
+        if (response.status !== 200) {
+          throw new Error("Failed to fetch achievements");
+        }
+        const data = response.data as Achievement[];
+        console.log("Fetched Achievements:", data);
+        setAchievements(data);
+      };
+
+      fetchAchievements();
+      
+    } catch (error) {
+      console.error(error);
+    }
+    
+  }, []);
+
+
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-x-hidden hide-scrollbar bg-gray-100">
@@ -57,7 +82,7 @@ export default function DynamicLayout({
 
         {/* Right Side: Visible only on medium screens and up (md:). */}
         <div className="hidden lg:flex flex-col items-center justify-start lg:w-1/5 p-4">
-          <Sidebar />
+          <Sidebar achievements={achievements} />
         </div>
       </div>
       <Footer/>

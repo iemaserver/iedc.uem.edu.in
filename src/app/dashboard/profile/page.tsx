@@ -225,7 +225,7 @@ export default function UpdateUserForm() {
       <h1 className="text-3xl font-bold text-center">Update Profile</h1>
       <div className="flex flex-col items-center relative w-32 h-32 mx-auto">
         <Image
-          src={profileImage || "https://via.placeholder.com/128x128/aabbcc/ffffff.png?text=User"}
+          src={profileImage || "/home/respberryla.jpg"}
           alt="Profile"
           width={128}
           height={128}

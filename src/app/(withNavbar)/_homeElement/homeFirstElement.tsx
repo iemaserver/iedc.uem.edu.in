@@ -113,7 +113,7 @@ const HomeFirstElement = () => {
                           onError={(e) => { 
                             const target = e.target as HTMLImageElement;
                             target.onerror = null;
-                            target.src = "https://via.placeholder.com/128x128/333333/FFFFFF.png?text=Image+Not+Found";
+                            target.src = "/home/respberryla.jpg";
                           }}
                         />
                       )}
