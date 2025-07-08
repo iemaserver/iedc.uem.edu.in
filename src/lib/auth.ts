@@ -13,46 +13,44 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials.password) return null;
+    async authorize(credentials) {
+  if (!credentials?.email || !credentials.password) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        });
+  const user = await prisma.user.findUnique({
+    where: { email: credentials.email },
+  });
 
-        if (!user || !user.password) return null;
+  if (!user || !user.password) return null;
 
-        const isValid = await comparePassword(
-          credentials.password,
-          user.password
-        );
-        if (!isValid) return null;
+  const isValid = await comparePassword(
+    credentials.password,
+    user.password
+  );
+  if (!isValid || !user.isVerified) return null;
 
-        if (!user.isVerified) return null;
+  const userDetails = await prisma.userDetails.findUnique({
+    where: { email: credentials.email },
+  });
 
-        const userDetails = await prisma.userDetails.findUnique({
-          where: { email: credentials.email },
-        });
-
-        if (userDetails) {
-          await prisma.user.update({
-            where: { email: credentials.email },
-            data: {
-              userType: userDetails.userType,
-              isVerified: true,
-            },
-          });
-        }
-
-        // For Credentials, explicitly set image to null as requested
-        return {
-          id: user.id,
-          email: user.email,
-          userType: userDetails?.userType || "STUDENT",
-          name: user.name,
-          image: undefined, // Set image to undefined for credentials login
-        };
+  // Update userType if not already set or differs
+  if (userDetails && user.userType !== userDetails.userType) {
+    await prisma.user.update({
+      where: { email: credentials.email },
+      data: {
+        userType: userDetails.userType,
       },
+    });
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    userType: userDetails?.userType || user.userType || "STUDENT",
+    name: user.name,
+    image: undefined, // no image for credentials login
+  };
+}
+
     }),
 
     // Google Provider
@@ -80,44 +78,56 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, account }) {
       try {
         // Handle Google login first time
-        if (user && account?.provider === "google") {
-          if (!user.email) {
-            throw new Error('No email provided from Google');
-          }
+   if (user && account?.provider === "google") {
+  if (!user.email) throw new Error("No email from Google");
 
-          const existingUser = await prisma.user.findUnique({
-            where: { email: user.email },
-          });
+  let existingUser = await prisma.user.findUnique({
+    where: { email: user.email },
+  });
 
-          if (!existingUser) {
-            // Create new user on first Google login
-            const newUser = await prisma.user.create({
-              data: {
-                email: user.email,
-                name: user.name?.toLowerCase().trim() || "Unnamed",
-                userType: "STUDENT", // Default userType
-                isVerified: true,
-                profileImage: user.image || null, // Store Google profile image in DB
-              },
-            });
-            token.id = newUser.id;
-            token.userType = newUser.userType;
-          } else {
-            // Update existing user's profile image if it's from Google
-            if (user.image && user.image !== existingUser.profileImage) {
-              await prisma.user.update({
-                where: { id: existingUser.id },
-                data: { profileImage: user.image },
-              });
-            }
-            token.id = existingUser.id;
-            token.userType = existingUser.userType;
-          }
+  const userDetails = await prisma.userDetails.findUnique({
+    where: { email: user.email },
+  });
 
-          token.email = user.email;
-          token.name = user.name || "Unnamed";
-          token.image = user.image || undefined; // Store Google image in JWT token
-        }
+  const userType = userDetails?.userType || "STUDENT";
+
+  if (!existingUser) {
+    // Create new user with default or fetched userType
+    const newUser = await prisma.user.create({
+      data: {
+        email: user.email,
+        name: user.name?.toLowerCase().trim() || "Unnamed",
+        userType,
+        isVerified: true,
+        profileImage: user.image || null,
+      },
+    });
+    existingUser = newUser;
+  } else {
+    // Update profile image if changed
+    if (user.image && user.image !== existingUser.profileImage) {
+      await prisma.user.update({
+        where: { id: existingUser.id },
+        data: { profileImage: user.image },
+      });
+    }
+
+    // Update userType if needed
+    if (userDetails && existingUser.userType !== userDetails.userType) {
+      await prisma.user.update({
+        where: { id: existingUser.id },
+        data: { userType: userDetails.userType },
+      });
+    }
+  }
+
+  // Assign to token
+  token.id = existingUser.id;
+  token.email = existingUser.email;
+  token.name = existingUser.name;
+  token.userType = existingUser.userType;
+  token.image = user.image || undefined;
+}
 
         // Credentials login
         if (user && account?.provider === "credentials") {
