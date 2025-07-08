@@ -65,34 +65,54 @@ import Image from "next/image";
 export const FacultyData = [
   {
     id: "1",
-    name: "Dr. John Doe",
-    position: "Professor of Computer Science",
-    profileImage: "/user.jpg", // Replace with actual image path
+    name: "Prof. (Dr.) Sandip Mandal",
+    position: "Head of Department of CSE(Iot, CS, BT)",
+    profileImage: "/faculty/sandipMandalSir.png", // Replace with actual image path
   },
   {
     id: "2",
-    name: "Dr. Jane Smith",
-    position: "Associate Professor of Mathematics",
-    profileImage: "/user.jpg", // Replace with actual image path
+    name: "Sweta Saha",
+    position: "Associate Professor of CSE(IoT, CS, BT)",
+    profileImage: "/faculty/swetamam.jpg", // Replace with actual image path
   },
   {
     id: "3",
-    name: "Dr. Emily Johnson",
-    position: "Assistant Professor of Physics",
-    profileImage: "/user.jpg", // Replace with actual image path
-  }
-  ,{
+    name: "Dr. Susmita Biswas",
+    position: "Assistant Professor of CSE(IoT, CS, BT)",
+    profileImage: "/faculty/susmitamam.jpg", // Replace with actual image path
+  },
+  {
     id: "4",
-    name: "Dr. Michael Brown",
-    position: "Professor of Chemistry",
-    profileImage: "/user.jpg", // Replace with actual image path
+    name: "Dr. Siddhartha Roy",
+    position: "Assistant Professor of CSE(IoT, CS, BT)",
+    profileImage: "/faculty/shiddharthasir.jpg", // Replace with actual image path
   },
   {
     id: "5",
-    name: "Dr. Sarah Davis",
-    position: "Associate Professor of Biology",
-    profileImage: "/user.jpg", // Replace with actual image path
-  }
+    name: "Dr. Arijeet Ghosh",
+    position: "Associate Professor of CSE(IoT, CS, BT)",
+    profileImage: "/faculty/arijeetsir.png", // Replace with actual image path
+  },
+
+  {
+    id: "6",
+    name: "Avik Kumar Das",
+    position: "Associate Professor of CSE(IoT, CS, BT)",
+    profileImage: "/faculty/aviksir.png", // Replace with actual image path
+  },
+  {
+    id: "7",
+    name: "Sangita Dutta",
+    position: "Associate Professor of CSE(IoT, CS, BT)",
+    profileImage: "/faculty/sangitamam.jpg", // Replace with actual image path
+  },
+  {
+    id: "8",
+    name: "Apurba Nandi",
+    position: "Associate Professor of CSE(IoT, CS, BT)",
+    profileImage: "/faculty/apurbasir.png", // Replace with actual image path
+  },
+  
 ]
 
 const FacultyCarousel = () => {
@@ -109,14 +129,14 @@ const FacultyCarousel = () => {
           align: "start",
         }}
         plugins={[plugin.current]}
-        className="w-full h-[20rem]"
+        className="w-full h-[25rem]"
       >
         <CarouselContent className="h-full">
           {FacultyData && FacultyData.length > 0 ? (
             FacultyData.map((faculty, index) => (
               <CarouselItem
                 key={faculty.id || index}
-                className="md:basis-1/2 lg:basis-1/3"
+                className="md:basis-1/3 lg:basis-1/4"
               >
                 <div className="p-1 h-full">
                   <Card className="w-full h-full group relative overflow-hidden rounded-lg shadow-lg">
@@ -184,35 +204,11 @@ import Link from "next/link";
 // You might need to add `npm install swiper` if you haven't already.
 
 export function SmFacultyCarousel() {
-  const [facultyData, setFacultyData] = useState<User[] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchFacultyData = async () => {
-      try {
-        setIsLoading(true);
-        // Fetch data for small screens, maybe a smaller limit
-        const response = await axios.get("/api/user");
-        if (response.status === 200) {
-          setFacultyData(response.data.data);
-        }
-      } catch (error) {
-        console.error("Error fetching faculty data:", error);
-        setFacultyData(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchFacultyData();
-  }, []);
+ 
 
   return (
     <div className="md:hidden w-full h-[25rem] py-4 px-2">
-      {isLoading ? (
-        <div className="w-full h-full flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-        </div>
-      ) : facultyData && facultyData.length > 0 ? (
+      {FacultyData && FacultyData.length > 0 ? (
         <Swiper
           effect={"cards"}
           grabCursor={true}
@@ -223,7 +219,7 @@ export function SmFacultyCarousel() {
           }}
           className="mySwiper w-full h-full"
         >
-          {facultyData.map((faculty, index) => (
+          {FacultyData.map((faculty, index) => (
             <SwiperSlide
               key={faculty.id || index}
               className="group relative rounded-xl overflow-hidden shadow-xl"

@@ -3,14 +3,16 @@
 import { useSession } from "next-auth/react";
 
 import FacultyCarousel, {SmFacultyCarousel} from "./_homeElement/FacultyCarousel";
-import OngoingProject from "./_homeElement/OngoingProject";
+import AchievementPage from "./_homeElement/OngoingProject";
 import PublishedProject from "./_homeElement/PublishedProject";
 import LabFacility from "./_homeElement/Facility";
 import WhoAreWe from "./_homeElement/WhoAreWe";
 import HomeFirstElement from "./_homeElement/homeFirstElement";
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { OnGoingProject as PrismaOnGoingProject, ProjectStatus, ResearchPaper } from "@prisma/client";
+import { Achievement, OnGoingProject as PrismaOnGoingProject, ProjectStatus, ResearchPaper } from "@prisma/client";
+import Footer from "./_homeElement/Footer";
+import Sidebar from "./_homeElement/Achievement";
 
 // --- New type definition for the fetched project data ---
 // We need to extend the Prisma type to include the related models
@@ -90,7 +92,27 @@ export default function Home() {
     
     fetchOngoingProjects();
   }, []);
+  const [achievements, setAchievements] =useState<Achievement[]>([]);
+ useEffect(() => {
+    try{
+      const fetchAchievements = async () => {
+        const response = await axios.get("/api/user/admin/achievement");
+        if (response.status !== 200) {
+          throw new Error("Failed to fetch achievements");
+        }
+        const data = response.data as Achievement[];
+        console.log("Fetched Achievements:", data);
+        setAchievements(data);
+      };
 
+      fetchAchievements();
+      
+    } catch (error) {
+      console.error(error);
+    }
+    
+  }, []);
+  
   // Fetch research papers
   useEffect(() => {
     const fetchResearchPapers = async () => {
@@ -126,7 +148,6 @@ export default function Home() {
       
       {/* Ongoing Projects Section with Error Handling */}
       <div className="w-full h-full flex flex-col items-center justify-start p-3 md:px-7 xl:px-16 pb-10">
-        <h1 className="text-4xl font-bold text-center mb-4">Ongoing Projects</h1>
         {error ? (
           <div className="w-full flex flex-col items-center justify-center py-8">
             <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
@@ -146,10 +167,12 @@ export default function Home() {
             </div>
           </div>
         ) : (
-          <OngoingProject ongoingProjectData={ongoingProjectData} />
+          <AchievementPage ongoingProjectData={ongoingProjectData} />
         )}
       </div>
-      
+              <div className="flex flex-col items-center justify-start p-4">
+          <Sidebar achievements={achievements} />
+        </div>
       <div className="flex flex-col lg:flex-row   items-center justify-between w-full px-4 gap-4 my-10">
         <div className="w-full  flex flex-col items-center justify-start">
           <p className="font-extrabold md:text-4xl text-2xl mb-4">
@@ -183,6 +206,7 @@ export default function Home() {
       </div>
       
       <PublishedProject paper={researchPaper}/>
+      <Footer/>
     </div>
   );
 }

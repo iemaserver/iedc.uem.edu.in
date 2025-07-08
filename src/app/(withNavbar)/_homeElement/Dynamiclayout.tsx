@@ -2,7 +2,7 @@
 
 import React, { useEffect } from "react";
 import Navbar from "./Navbar";
-import Sidebar from "./Sidebar";
+import Sidebar from "./Achievement";
 import Footer from "./Footer";
 import { Achievement } from "@prisma/client";
 import axios from "axios";
@@ -15,7 +15,6 @@ export default function DynamicLayout({
   const topBarRef = React.useRef<HTMLDivElement>(null);
   const [topBarHeight, setTopBarHeight] = React.useState<number | null>(null);
   const [isClient, setIsClient] = React.useState(false);
-  const [achievements, setAchievements] = React.useState<Achievement[]>([]);
 
   React.useEffect(() => {
     setIsClient(true);
@@ -35,26 +34,7 @@ export default function DynamicLayout({
     return () => window.removeEventListener("resize", updateHeight);
   }, []); // Empty dependency array means this effect runs once after the initial render
 
-  useEffect(() => {
-    try{
-      const fetchAchievements = async () => {
-        const response = await axios.get("/api/user/admin/achievement");
-        if (response.status !== 200) {
-          throw new Error("Failed to fetch achievements");
-        }
-        const data = response.data as Achievement[];
-        console.log("Fetched Achievements:", data);
-        setAchievements(data);
-      };
-
-      fetchAchievements();
-      
-    } catch (error) {
-      console.error(error);
-    }
-    
-  }, []);
-
+ 
 
 
   return (
@@ -76,16 +56,13 @@ export default function DynamicLayout({
         }}
       >
         {/* Left Side: Visible on all screens. Its content is scrollable if needed. */}
-        <div className="w-full lg:w-4/5 overflow-y-auto hide-scrollbar pb-10">
+        <div className="w-full overflow-y-auto hide-scrollbar pb-10 md:pb-0 overflow-x-hidden">
           <div className="h-fit  rounded-md ">{children}</div>
         </div>
 
         {/* Right Side: Visible only on medium screens and up (md:). */}
-        <div className="hidden lg:flex flex-col items-center justify-start lg:w-1/5 p-4">
-          <Sidebar achievements={achievements} />
-        </div>
+
       </div>
-      <Footer/>
     </div>
   );
 }

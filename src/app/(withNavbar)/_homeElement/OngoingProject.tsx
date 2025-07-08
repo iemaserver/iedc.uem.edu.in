@@ -1,9 +1,11 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import axios from "axios";
-import { OnGoingProject as PrismaOnGoingProject, ProjectStatus } from "@prisma/client";
+import React from "react";
+import {
+  OnGoingProject as PrismaOnGoingProject,
+  ProjectStatus,
+} from "@prisma/client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge"; // Shadcn UI Badge
+import { Badge } from "@/components/ui/badge";
 import {
   Carousel,
   CarouselContent,
@@ -12,33 +14,21 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
-import { cn } from "@/lib/utils"; // Assuming you have a utility for combining class names
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
 
-// --- New type definition for the fetched project data ---
-// We need to extend the Prisma type to include the related models
 interface OnGoingProjectWithRelations extends PrismaOnGoingProject {
-  facultyAdvisors: {
-    id: string;
-    name: string;
-    email: string;
-  }[];
-  members: {
-    id: string;
-    name: string;
-    email: string;
-  }[];
-  // Re-declare to ensure correct type from Prisma schema
+  facultyAdvisors: { id: string; name: string; email: string }[];
+  members: { id: string; name: string; email: string }[];
   status: ProjectStatus;
 }
 
-function CarouselOngoingProject({ongoingProjectData}: {ongoingProjectData?: OnGoingProjectWithRelations[]}) {
-
-
-
-  
-  // Format the date to a more readable format
+function CarouselOngoingProject({
+  ongoingProjectData,
+}: {
+  ongoingProjectData?: OnGoingProjectWithRelations[];
+}) {
   const formatDate = (dateString: string | Date): string => {
     if (!dateString) return "N/A";
     const date = new Date(dateString);
@@ -51,135 +41,126 @@ function CarouselOngoingProject({ongoingProjectData}: {ongoingProjectData?: OnGo
 
   return (
     <Carousel
-      opts={{
-        align: "start",
-        loop: true, // Loop the carousel for a continuous flow
-      }}
-      // Add Autoplay plugin
+      opts={{ align: "start", loop: true }}
       plugins={[
         Autoplay({
-          delay: 5000, // Increased delay for better reading time
+          delay: 5000,
         }),
       ]}
-      className="w-full h-full p-3"
+      className="w-full h-full"
     >
       <CarouselContent>
-        {/*
-          This is where the map function and conditional rendering should be.
-          The CarouselItem and its content MUST be inside the map.
-        */}
-        { (ongoingProjectData?.length ?? 0) > 0 ? (
+        {(ongoingProjectData?.length ?? 0) > 0 ? (
           (ongoingProjectData ?? []).map((project) => (
-            // Use project.id as key for stability
             <CarouselItem key={project.id} className="w-full h-full">
               <div className="p-1 w-full h-full">
-                {/* Use 'group' class for the hover animation container */}
-                <Card className="h-full group transition-transform duration-500 hover:scale-[1.02] hover:shadow-lg">
-                  <CardContent
-                    // FIX: Use a responsive grid or flex layout for better alignment
-                    className="flex flex-col md:grid md:grid-cols-2 h-full p-6 gap-6 md:gap-8"
-                  >
-                    {/* Project Image Section */}
-                    <div className="relative w-full aspect-video md:aspect-square rounded-lg overflow-hidden shadow-md">
-                      {/* Use Next.js Image component for optimization */}
+                <Card className="h-fit group transition-transform duration-500 hover:scale-[1.02] hover:shadow-lg">
+                  <CardContent className="flex flex-col md:grid md:grid-cols-2 h-fit p-4 gap-4 md:gap-6">
+                    {/* Image */}
+                    <div className="w-full h-[20rem] relative rounded-lg overflow-hidden shadow-md">
                       <Image
-                        src={project.projectImage || "/home/gpu.png"} // Use a default image if projectImage is null
+                        src={project.projectImage || "/home/gpu.png"}
                         alt={`${project.title} image`}
-                        fill
-                        sizes="(max-width: 768px) 100vw, 50vw"
-                        style={{ objectFit: "cover" }}
-                        className="transition-transform duration-500 group-hover:scale-105"
+                        width={600}
+                        height={400}
+                        className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105"
                       />
                     </div>
 
-                    {/* Project Details Section */}
-                    <div
-                      // FIX: Use flex-col and overflow-y-auto to manage content
-                      className="flex flex-col h-full overflow-hidden"
-                    >
-                      {/* Title and Status Badge */}
-                      <div className="flex items-start justify-between mb-3">
-                        <h2 className="text-2xl md:text-3xl font-bold leading-tight pr-4">
+                    {/* Details */}
+                    <div className="flex flex-col h-full overflow-y-auto max-h-[350px] pr-1">
+                      <div className="flex items-start justify-between mb-2">
+                        <h2 className="text-xl md:text-2xl font-bold leading-tight pr-4">
                           {project.title}
                         </h2>
-                        {/* Display status with a Shadcn Badge */}
                         <Badge
                           variant="outline"
                           className={cn(
                             "py-1 px-3 text-sm font-semibold rounded-full min-w-max",
-                            project.status === "ONGOING" && "bg-yellow-100 text-yellow-800 border-yellow-300",
-                            project.status === "COMPLETED" && "bg-green-100 text-green-800 border-green-300",
-                            project.status === "CANCELLED" && "bg-red-100 text-red-800 border-red-300",
-                            project.status === "UPLOAD" && "bg-gray-100 text-gray-800 border-gray-300",
-                            project.status === "PUBLISH" && "bg-blue-100 text-blue-800 border-blue-300"
+                            project.status === "ONGOING" &&
+                              "bg-yellow-100 text-yellow-800 border-yellow-300",
+                            project.status === "COMPLETED" &&
+                              "bg-green-100 text-green-800 border-green-300",
+                            project.status === "CANCELLED" &&
+                              "bg-red-100 text-red-800 border-red-300",
+                            project.status === "UPLOAD" &&
+                              "bg-gray-100 text-gray-800 border-gray-300",
+                            project.status === "PUBLISH" &&
+                              "bg-blue-100 text-blue-800 border-blue-300"
                           )}
                         >
                           {project.status}
                         </Badge>
                       </div>
 
-                      {/* Description & Metadata Section with controlled overflow */}
-                      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                        {/* Description */}
-                        <p className="text-base text-gray-700 leading-relaxed mb-4">
-                          {project.description}
+                      <p className="text-sm text-gray-700 leading-normal mb-3">
+                        {project.description}
+                      </p>
+
+                      <div className="text-sm text-gray-600 space-y-1 mb-3">
+                        <p>
+                          <span className="font-semibold">Start Date:</span>{" "}
+                          {formatDate(project.startDate)}
                         </p>
+                        <p>
+                          <span className="font-semibold">End Date:</span>{" "}
+                          {project.endDate
+                            ? formatDate(project.endDate)
+                            : "Ongoing"}
+                        </p>
+                      </div>
 
-                        {/* Dates */}
-                        <div className="text-sm text-gray-600 space-y-1 mb-4">
-                          <p>
-                            <span className="font-semibold">Start Date:</span>{" "}
-                            {formatDate(project.startDate)}
-                          </p>
-                          <p>
-                            <span className="font-semibold">End Date:</span>{" "}
-                            {project.endDate ? formatDate(project.endDate) : "Ongoing"}
-                          </p>
-                        </div>
-
-                        {/* Tags */}
-                        {project.projectTags && project.projectTags.length > 0 && (
-                          <div className="mb-4">
-                            <h4 className="font-semibold mb-2 text-sm text-gray-800">
-                              Tags:
-                            </h4>
-                            <div className="flex flex-wrap gap-2">
-                              {project.projectTags.map((tag, tagIndex) => (
-                                <Badge key={tagIndex} variant="secondary">
-                                  {tag}
-                                </Badge>
-                              ))}
-                            </div>
+                      {project.projectTags?.length > 0 && (
+                        <div className="mb-3">
+                          <h4 className="font-semibold mb-1 text-sm text-gray-800">
+                            Tags:
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {project.projectTags.map((tag, i) => (
+                              <Badge key={i} variant="secondary">
+                                {tag}
+                              </Badge>
+                            ))}
                           </div>
-                        )}
+                        </div>
+                      )}
 
-                        {/* Team Info */}
-                        <div className="text-sm space-y-1 mb-4">
-                          <p>
-                            <span className="font-semibold">Members:</span>{" "}
-                            {project.members
-                              ?.map((member) => member.name)
-                              .join(", ") || "N/A"}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Faculty Advisors:</span>{" "}
-                            {project.facultyAdvisors
-                              ?.map((advisor) => advisor.name)
-                              .join(", ") || "N/A"}
-                          </p>
+                      <div className="text-sm space-y-2 mb-3">
+                        <div className="flex flex-row flex-wrap gap-2 items-center">
+                          <span className="font-semibold">Members:</span>
+                          {project.members?.map((member) => (
+                            <Badge
+                              key={member.id}
+                              variant="secondary"
+                              className="text-sm px-2 py-1"
+                            >
+                              {member.name}
+                            </Badge>
+                          ))}
+                        </div>
+                        <div className="flex flex-row flex-wrap gap-2 items-center">
+                          <span className="font-semibold">Faculty:</span>
+                          {project.facultyAdvisors?.map((advisor) => (
+                            <Badge
+                              key={advisor.id}
+                              variant="secondary"
+                              className="text-sm px-2 py-1"
+                            >
+                              {advisor.name}
+                            </Badge>
+                          ))}
                         </div>
                       </div>
 
-                      {/* Project Link - Aligned to the bottom */}
                       {project.projectLink && (
-                        <div className="mt-auto pt-4 border-t border-gray-200">
+                        <div className="mt-auto pt-2 border-t border-gray-200">
                           <Link
                             href={project.projectLink}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-block" // Ensure the link is a block-level element for proper alignment
+                            className="inline-block"
                           >
-                            <Badge className="bg-blue-600 text-white hover:bg-blue-700 transition-colors py-2 px-4 text-base">
+                            <Badge className="bg-blue-600 text-white hover:bg-blue-700 transition-colors py-2 px-4 text-sm">
                               View Project
                             </Badge>
                           </Link>
@@ -195,19 +176,32 @@ function CarouselOngoingProject({ongoingProjectData}: {ongoingProjectData?: OnGo
           <CarouselItem className="w-full h-full flex items-center justify-center">
             <div className="flex flex-col items-center justify-center py-12">
               <div className="bg-gray-100 rounded-full p-4 mb-4">
-                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <svg
+                  className="w-8 h-8 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
                 </svg>
               </div>
-              <p className="text-gray-600 text-lg font-medium mb-2">No ongoing projects available</p>
+              <p className="text-gray-600 text-lg font-medium mb-2">
+                No ongoing projects available
+              </p>
               <p className="text-gray-500 text-sm text-center max-w-md">
-                We're currently working on exciting new projects. Check back soon for updates!
+                We're currently working on exciting new projects. Check back
+                soon for updates!
               </p>
             </div>
           </CarouselItem>
         )}
       </CarouselContent>
-      {/* Conditionally render navigation buttons */}
+
       {(ongoingProjectData?.length ?? 0) > 1 && (
         <>
           <CarouselPrevious className="left-2 top-1/2 -translate-y-1/2" />
@@ -218,12 +212,17 @@ function CarouselOngoingProject({ongoingProjectData}: {ongoingProjectData?: OnGo
   );
 }
 
-// The main component now accepts and passes through the ongoingProjectData prop
-const OngoingProject = ({ ongoingProjectData }: { ongoingProjectData?: OnGoingProjectWithRelations[] }) => {
+const OngoingProject = ({
+  ongoingProjectData,
+}: {
+  ongoingProjectData?: OnGoingProjectWithRelations[];
+}) => {
   return (
-    <div className="w-full h-full flex flex-col items-center justify-start p-3 md:px-7 xl:px-16 pb-10">
-      <h1 className="text-4xl font-bold text-center mb-4">Ongoing Projects</h1>
-      <div className="w-full aspect-square md:aspect-auto md:h-[80vh] lg:h-[85vh] flex items-center justify-center">
+    <div className="w-full h-full flex flex-col items-center justify-start p-0 md:px-7 xl:px-16 pb-10">
+      <h1 className="text-4xl font-bold text-center my-4">
+        Ongoing Projects
+      </h1>
+      <div className="w-full aspect-auto flex items-center justify-center">
         <CarouselOngoingProject ongoingProjectData={ongoingProjectData} />
       </div>
     </div>

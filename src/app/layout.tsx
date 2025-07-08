@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { Playfair_Display} from "next/font/google";
+import { Gideon_Roman} from "next/font/google";
 import "./globals.css";
 import Providers from "@/lib/provider";
 
 
-const playfairDisplay = Playfair_Display({
-  variable: "--font-playfair-display",
+const gideonRoman = Gideon_Roman({
+  variable: "--font-gideon-roman",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400"],
 });
 
 export const metadata: Metadata = {
@@ -23,7 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={` ${playfairDisplay.className} antialiased`}
+        className={` ${gideonRoman.className} antialiased`}
       >
         <Providers>
 

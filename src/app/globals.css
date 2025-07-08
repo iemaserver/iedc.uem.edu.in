@@ -1,10 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Iceberg&display=swap');
+
 @import "tailwindcss";
 @import "tw-animate-css";
 
-.iceberg-regular {
-  font-family: "Iceberg", sans-serif;
-}
 .hide-scrollbar {
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* Internet Explorer and Edge */
