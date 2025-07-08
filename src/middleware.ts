@@ -21,8 +21,7 @@ const adminRoutes = [
 
 // Define faculty-only routes
 const facultyRoutes = [
-  '/dashboard/paper',
-  '/dashboard/project',
+  '/dashboard/faculty',
 ];
 
 // Define student-only routes
