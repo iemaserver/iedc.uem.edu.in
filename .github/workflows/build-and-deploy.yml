@@ -36,6 +36,18 @@ jobs:
 
       - name: Build project
         run: npx prisma generate && npm run build
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL_PRODUCTION: ${{ secrets.DATABASE_URL_PRODUCTION }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }}
+          NEXT_PUBLIC_APPWRITE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_APPWRITE_PROJECT_ID }}
+          NEXT_PUBLIC_APPWRITE_PUBLIC_ENDPOINT: ${{ secrets.NEXT_PUBLIC_APPWRITE_PUBLIC_ENDPOINT }}
+          NEXT_PUBLIC_APPWRITE_BUCKET_ID: ${{ secrets.NEXT_PUBLIC_APPWRITE_BUCKET_ID }}
 
       - name: Enable Firebase experiments
         run: npx firebase-tools@latest experiments:enable webframeworks
