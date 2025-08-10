@@ -179,10 +179,10 @@ export default function Home() {
             Laboratory Facilities
           </p>
           <p className="text-justify text-md">
-            Lorem ipsum dolor sit amet consectetur adipisicing elit. Autem alias
+            {/* Lorem ipsum dolor sit amet consectetur adipisicing elit. Autem alias
             vel itaque quibusdam dignissimos similique doloribus provident
             quidem suscipit, asperiores obcaecati repellendus laudantium animi
-            modi impedit a? Animi, similique dicta?
+            modi impedit a? Animi, similique dicta? */}
           </p>
           <p className="hidden md:block">
             Lorem ipsum dolor sit, amet consectetur adipisicing elit.
