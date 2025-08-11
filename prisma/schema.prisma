@@ -7,147 +7,344 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
-// ─────────────────────────────────────────────────────────────
-// MODELS
-// ─────────────────────────────────────────────────────────────
-
-model User {
-  id                     String    @id @default(uuid())
-  name                   String   
-  email                  String    @unique
-  facultyAcademicDetails String?
-  facultyResearchInterests String?
-  password               String?
-  degree                 String?
-  year                   Int?
-  department             String?
-  university             String?
-  areaOfInterest         String[]
-  position               String?
-  profileImage           String?
-  resetToken             String?   @unique
-  resetTokenExpiry       DateTime?
-  isVerified             Boolean   @default(false)
-  userType               UserType  @default(STUDENT)
-  verificationCode       String?
-  verificationCodeExpiry DateTime?
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
-  Paper                  ResearchPaper[] @relation("PaperAuthors")
-  facultyAdvisorPapers   ResearchPaper[] @relation("PaperFacultyAdvisors")
-  reviewedPapers         ResearchPaper[] @relation("PaperReviewer")
-  advisedProjects        OnGoingProject[] @relation("UserFacultyAdvisor")
-  projectMemberships     OnGoingProject[] @relation("ProjectMembers")
-  reviewedProjects       OnGoingProject[] @relation("ProjectReviewer")
-}
+// =======================================================
+// ENUMS
+// =======================================================
 
 enum UserType {
   STUDENT
-  FACULTY
+  TEACHER
   ADMIN
 }
 
-enum ReviewerStatus {
+enum ResearchWorkType {
+  COPYRIGHT
+  PATENT
+  TRANSACTION
+  CONFERENCE
+  JOURNAL
+  BOOK_CHAPTER
+  GRANT_IN
+  FDP
+  CERTIFICATION
+}
+
+enum PublicationStatus {
   ACCEPTED
+  COMMUNICATED
+  PUBLISHED
+}
+
+enum SubmissionStatus {
+  UNDER_REVIEW
+  UPLOADED
+  PUBLISHED
   REJECTED
-  PENDING
-  ONGOING
-  ACCEPTED_FOR_PUBLISH
-  REJECTED_FOR_PUBLISH
-  NEEDS_UPDATES // For when reviewer requests student to make changes
 }
 
+// =======================================================
+// BASE MODELS
+// =======================================================
 
-enum PaperStatus {
-  UPLOAD
-  ON_REVIEW
-  PUBLISH
-  REJECT
+model User {
+  id              String       @id @default(uuid())
+  email           String?      @unique
+  password        String?
+  fullName        String
+  userType        UserType
+  image           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  isVerified      Boolean      @default(false)
+  resetToken      String?      @unique
+  resetTokenExpiry DateTime?
+  // Relations
+  studentProfile  Student?
+  teacherProfile  Teacher?
+  researchWorks   ResearchWork[]
+  achievements    Achievement[]
+  advisedResearchPapers ResearchPaper[] @relation("ResearchPaperAdvisors")
+  memberOfResearchPapers ResearchPaper[] @relation("ResearchPaperMembers")
+  advisedOngoingProjects OngoingProject[] @relation("OngoingProjectAdvisors")
+  memberOfOngoingProjects OngoingProject[] @relation("OngoingProjectMembers")
 }
 
+model Student {
+  id             String      @id @default(uuid())
+  userId         String      @unique
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  section        String
+  year           Int
+  batch          String
+  department     String
+  rollNumber     String      @unique
 
-model ResearchPaper {
+  researchPapers  ResearchPaper[]
+  ongoingProjects OngoingProject[]
+}
+
+model Teacher {
   id              String      @id @default(uuid())
-  title           String
-  abstract        String
-  filePath        String
-  author          User[]      @relation("PaperAuthors")
-  keywords        String[]
-  submissionDate  DateTime    @default(now())
-  lastUpdated     DateTime    @updatedAt
-  reviewer        User?       @relation("PaperReviewer", fields: [reviewerId], references: [id])
-  reviewerId      String?
-  status          PaperStatus @default(UPLOAD)
-  reviewerStatus  ReviewerStatus @default(PENDING)
-  facultyAdvisors User[]      @relation("PaperFacultyAdvisors")
+  userId          String      @unique
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  affiliation     String
+  designation     String
+  subjectOfInterest String?
+  officialMail    String?
+  address         String?
 }
 
+// =======================================================
+// RESEARCH WORK
+// =======================================================
+
+model ResearchWork {
+  id           String             @id @default(uuid())
+  title        String
+  type         ResearchWorkType
+  uploadedById String
+  uploadedBy   User               @relation(fields: [uploadedById], references: [id])
+  isPublic     Boolean            @default(false)
+  createdAt    DateTime           @default(now()) 
+  updatedAt    DateTime           @updatedAt
+  isDeleted    Boolean            @default(false)
+  deletedAt    DateTime?
+
+  // Relations
+  authors      Author[]
+  keywords     String[]
+  copyright    Copyright?
+  patent       Patent?
+  transaction  Transaction?
+  conference   Conference?
+  journal      Journal?
+  bookChapter  BookChapter?
+  grantIn      GrantIn?
+  fdp          FDP?
+  certification Certification?
+}
+
+model Author {
+  id             String       @id @default(uuid())
+  name           String
+  researchWorkId String
+  researchWork   ResearchWork @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
+}
+
+
+// =======================================================
+// RESEARCH WORK TYPES
+// =======================================================
+
+model Copyright {
+  id               String       @id @default(uuid())
+  researchWorkId   String       @unique
+  researchWork     ResearchWork @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
+  inventors        String
+  filedAt          DateTime?    @db.Date
+  submittedAt      DateTime?    @db.Date
+  publishedAt      DateTime?    @db.Date
+  grantedAt        DateTime?    @db.Date
+}
+
+model Patent {
+  id               String       @id @default(uuid())
+  researchWorkId   String       @unique
+  researchWork     ResearchWork @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
+  inventors        String
+  applicant        String
+  applicationNo    String?
+  filedAt          DateTime?    @db.Date
+  submittedAt      DateTime?    @db.Date
+  publishedAt      DateTime?    @db.Date
+  publicationLink  String?
+  grantedAt        DateTime?    @db.Date
+  patentLink       String?
+  country          String?
+}
+
+model Transaction {
+  id               String          @id @default(uuid())
+  researchWorkId   String          @unique
+  researchWork     ResearchWork    @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
+  transactionName  String
+  typeOfTransaction String?
+  indexOfTransaction String?
+  impactFactor     Float?
+  impactFactorDate DateTime?       @db.Date
+  publisher        String?
+  status           PublicationStatus
+  statusDate       DateTime        @db.Date
+  paperLinkDOI     String?
+  registrationFees Float?
+  reimbursementStatus String?
+}
+
+model Conference {
+  id               String          @id @default(uuid())
+  researchWorkId   String          @unique
+  researchWork     ResearchWork    @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
+  mode             String? // Online / Offline
+  conferenceName   String
+  typeOfConference String?
+  indexOfConference String?
+  publisher        String?
+  status           PublicationStatus
+  statusDate       DateTime        @db.Date
+  paperLinkDOI     String?
+  registrationFees Float?
+  reimbursementStatus String?
+}
+
+model Journal {
+  id               String          @id @default(uuid())
+  researchWorkId   String          @unique
+  researchWork     ResearchWork    @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
+  journalName      String
+  typeOfJournal    String?
+  indexOfJournal   String?
+  impactFactor     Float?
+  impactFactorDate DateTime?       @db.Date
+  publisher        String?
+  status           PublicationStatus
+  statusDate       DateTime        @db.Date
+  paperLinkDOI     String?
+  registrationFees Float?
+  reimbursementStatus String?
+}
+
+model BookChapter {
+  id               String          @id @default(uuid())
+  researchWorkId   String          @unique
+  researchWork     ResearchWork    @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
+  status           PublicationStatus
+  registrationFees Float?
+  reimbursementStatus String?
+  isbnIssn         String?
+}
+
+model GrantIn {
+  id               String       @id @default(uuid())
+  researchWorkId   String       @unique
+  researchWork     ResearchWork @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
+  projectCode      String?
+  projectPI        String?
+  projectCoPI      String?
+  status           String?
+  appliedAt        DateTime?    @db.Date
+  grantedAt        DateTime?    @db.Date
+  durationMonths   Int?
+  grantAmount      Float?
+  utilizedAmount   Float?
+  remainingAmount  Float?
+  publication      String?
+  publicationDetails String?
+}
+
+model FDP {
+  id               String       @id @default(uuid())
+  researchWorkId   String       @unique
+  researchWork     ResearchWork @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
+  name             String
+  organizedBy      String?
+  duration         String?
+  startDate        DateTime?    @db.Date
+  endDate          DateTime?    @db.Date
+  topic            String?
+  remarks          String?
+}
+
+model Certification {
+  id               String       @id @default(uuid())
+  researchWorkId   String       @unique
+  researchWork     ResearchWork @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
+  name             String
+  certificationName String
+  offeredBy        String?
+  completedAt      DateTime?    @db.Date
+  link             String?
+  remarks          String?
+}
+
+// =======================================================
+// ACHIEVEMENTS
+// =======================================================
 
 model Achievement {
-  id                 String   @id @default(uuid())
-  title              String
-  description        String
-  image              String?
-  link               String?
-  achievementDate    DateTime
-  category           String
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  homePageVisibility Boolean  @default(false)
-  
-  
- 
-}
-
-model UserDetails {
-  id       String   @id @default(uuid())
-  email    String   @unique
-  name     String  
-  userType UserType
-}
-
-
-
-
-model OnGoingProject{
   id          String   @id @default(uuid())
   title       String
-  description String
-  facultyAdvisors User[] @relation("UserFacultyAdvisor")
-  projectLink String?
-  projectImage String?
-  projectType String?
-  projectTags String[]
-  startDate   DateTime @default(now())
-  endDate     DateTime?
-  status      ProjectStatus @default(UPLOAD)
-  members     User[]   @relation("ProjectMembers")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Reviewer fields
-  reviewer    User?    @relation("ProjectReviewer", fields: [reviewerId], references: [id])
-  reviewerId  String?
-  reviewerStatus ReviewerStatus @default(PENDING)
-  reviewerComments String?
-  reviewedAt  DateTime?
-  
-  // Student update fields (when reviewer requests changes)
-  needsUpdate Boolean @default(false)
-  updateRequest String? // Reviewer's request for updates
-  updateDeadline DateTime? // Deadline for student updates
-  studentUpdateComments String? // Student's response to update request
-  studentUpdatedAt DateTime? // When student last updated
+  description String?
+  imageUrl    String?
+  uploadedAt  DateTime @default(now())
+  isPublished Boolean  @default(false)
+  link        String?
+  uploadedById String
+  uploadedBy  User     @relation(fields: [uploadedById], references: [id])
 }
 
+// =======================================================
+// STUDENT PROJECTS & PAPERS
+// =======================================================
 
+model ResearchPaper {
+  id              String             @id @default(uuid())
+  studentId       String
+  student         Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  title           String
+  abstract        String?
+  image           String?
+  status          SubmissionStatus
+  createdAt       DateTime           @default(now()) 
+  updatedAt       DateTime           @updatedAt
 
+  keywords        String[]
+  facultyAdvisors User[] @relation("ResearchPaperAdvisors")
+  members         User[] @relation("ResearchPaperMembers")
+}
 
-enum ProjectStatus {
-  UPLOAD
-  PUBLISH
-  ONGOING
-  COMPLETED
-  CANCELLED
+model OngoingProject {
+  id              String        @id @default(uuid())
+  studentId       String
+  student         Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  title           String
+  abstract        String?
+  image           String?
+  status          SubmissionStatus
+  createdAt       DateTime      @default(now()) 
+  updatedAt       DateTime      @updatedAt
+
+  keywords        String[]
+  facultyAdvisors User[] @relation("OngoingProjectAdvisors")
+  members         User[] @relation("OngoingProjectMembers")
+}
+
+// =======================================================
+// NEW ADDITIONS
+// =======================================================
+
+model LegacyUser {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  fullName  String
+  userType  UserType
+  createdAt DateTime @default(now())
+
+  @@index([userType])
+}
+
+model UpcomingCompetition {
+  id               String    @id @default(uuid())
+  title            String
+  description      String?
+  startDate        DateTime
+  endDate          DateTime?
+  location         String?
+  organizer        String?
+  prizeDetails     String?
+  registrationLink String?
+  isPublished      Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([startDate])
 }
