@@ -195,7 +195,7 @@ const Navbar: React.FC = () => {
 
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <div className="w-10 h-10 rounded-full overflow-hidden cursor-pointer"><Image src={session.user.image||"/default-image.png"} alt={session.user.name||"logo"} width={50} height={50} className="" /></div>
+                      <div className="w-10 h-10 rounded-full overflow-hidden cursor-pointer"><Image src={session.user.image||"/default-image.png"} alt={session.user.fullName||"logo"} width={50} height={50} className="" /></div>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
 

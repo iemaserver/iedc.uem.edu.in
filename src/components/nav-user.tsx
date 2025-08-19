@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import {
   BadgeCheck,
@@ -7,13 +7,9 @@ import {
   CreditCard,
   LogOut,
   Sparkles,
-} from "lucide-react"
+} from "lucide-react";
 
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,26 +18,27 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar"
-import { signOut } from "next-auth/react"
-
-export function NavUser({
-    name,
-    email,
-    profileImage
-  }:{
-  name: string,
-  email: string,
-  profileImage: string
-  }
-) {
-  const { isMobile } = useSidebar()
+} from "@/components/ui/sidebar";
+import { UserType } from "@prisma/client";
+import { signOut } from "next-auth/react";
+interface sessionType {
+  user: {
+    id: string;
+    fullName: string;
+    email: string;
+    image: string;
+    userType: UserType;
+  };
+}
+export function NavUser({ session }: { session: sessionType }) {
+  const { isMobile } = useSidebar();
+  const user = session?.user;
 
   return (
     <SidebarMenu>
@@ -53,12 +50,12 @@ export function NavUser({
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg">
-                <AvatarImage src={profileImage} alt={name} />
-                <AvatarFallback className="rounded-lg">IEDC</AvatarFallback>
+                <AvatarImage src={user.image} alt={user.fullName} />
+                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{name}</span>
-                <span className="truncate text-xs">{email}</span>
+                <span className="truncate font-medium">{user.fullName}</span>
+                <span className="truncate text-xs">{user.email}</span>
               </div>
               <ChevronsUpDown className="ml-auto size-4" />
             </SidebarMenuButton>
@@ -69,22 +66,29 @@ export function NavUser({
             align="end"
             sideOffset={4}
           >
-            <DropdownMenuLabel className="p-0 font-normal">
-              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={profileImage} alt={name} />
-                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
-                </Avatar>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{name}</span>
-                  <span className="truncate text-xs">{email}</span>
-                </div>
-              </div>
-            </DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuItem>
+                <Sparkles />
+                Upgrade to Pro
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
-           
-            
-            <DropdownMenuItem onClick={()=>signOut()}>
+            <DropdownMenuGroup>
+              <DropdownMenuItem>
+                <BadgeCheck />
+                Account
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <CreditCard />
+                Billing
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Bell />
+                Notifications
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => signOut()}>
               <LogOut />
               Log out
             </DropdownMenuItem>
@@ -92,5 +96,5 @@ export function NavUser({
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
-  )
+  );
 }

@@ -10,13 +10,14 @@ import WhoAreWe from "./_homeElement/WhoAreWe";
 import HomeFirstElement from "./_homeElement/homeFirstElement";
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { Achievement, OnGoingProject as PrismaOnGoingProject, ProjectStatus, ResearchPaper } from "@prisma/client";
+import { Achievement, OngoingProject as PrismaOngoingProject, ResearchPaper } from "@prisma/client";
 import Footer from "./_homeElement/Footer";
 import Sidebar from "./_homeElement/Achievement";
+import { ClientOnly } from "@/hooks/use-client-only";
 
 // --- New type definition for the fetched project data ---
 // We need to extend the Prisma type to include the related models
-interface OnGoingProjectWithRelations extends PrismaOnGoingProject {
+interface OnGoingProjectWithRelations extends PrismaOngoingProject {
   facultyAdvisors: {
     id: string;
     name: string;
@@ -27,8 +28,6 @@ interface OnGoingProjectWithRelations extends PrismaOnGoingProject {
     name: string;
     email: string;
   }[];
-  // Re-declare to ensure correct type from Prisma schema
-  status: ProjectStatus;
 }
 
 
@@ -54,11 +53,17 @@ export interface ResearchPaperWithRelations extends ResearchPaper {
 
 export default function Home() {
   const {data:session} = useSession();
-
+  const [isMounted, setIsMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [ongoingProjectData, setOngoingProjectData] = useState<OnGoingProjectWithRelations[]>([]);
   const [researchPaper, setResearchPaper] = useState<ResearchPaperWithRelations[]>([]);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     if (session) {
@@ -92,7 +97,7 @@ export default function Home() {
     
     fetchOngoingProjects();
   }, []);
-  const [achievements, setAchievements] =useState<Achievement[]>([]);
+  
  useEffect(() => {
     try{
       const fetchAchievements = async () => {
@@ -131,8 +136,8 @@ export default function Home() {
     fetchResearchPapers();
   }, []);
 
-  // Loading state
-  if (isLoading) {
+  // Loading state - prevent hydration mismatch
+  if (!isMounted || isLoading) {
     return (
       <div className="flex flex-col h-screen w-full items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -196,16 +201,22 @@ export default function Home() {
           </p>
         </div>
         <div className="w-full lg:1/2">
-          <LabFacility />
+          <ClientOnly fallback={<div className="h-96 bg-gray-200 animate-pulse rounded-lg"></div>}>
+            <LabFacility />
+          </ClientOnly>
         </div>
       </div>
       <div className="flex flex-col  items-center justify-between w-full px-4">
         <p className="font-extrabold text-4xl mb-4">Our Faculties</p>
-        <FacultyCarousel />
-        <SmFacultyCarousel />
+        <ClientOnly fallback={<div className="h-64 bg-gray-200 animate-pulse rounded-lg w-full"></div>}>
+          <FacultyCarousel />
+          <SmFacultyCarousel />
+        </ClientOnly>
       </div>
       
-      <PublishedProject paper={researchPaper}/>
+      <ClientOnly fallback={<div className="h-96 bg-gray-200 animate-pulse rounded-lg mx-4"></div>}>
+        <PublishedProject paper={researchPaper}/>
+      </ClientOnly>
       <Footer/>
     </div>
   );

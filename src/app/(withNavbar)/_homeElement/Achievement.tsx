@@ -24,7 +24,7 @@ const AchievementPage = ({ achievements }: { achievements: Achievement[] }) => {
                 {/* Image Container */}
                 <div className="relative w-full h-40 ">
                   <Image
-                    src={achievement.image || "/default-achievement.jpg"}
+                    src={achievement.imageUrl || "/default-achievement.jpg"}
                     alt={achievement.title}
                     fill
                     className="object-cover rounded-md "
@@ -33,7 +33,7 @@ const AchievementPage = ({ achievements }: { achievements: Achievement[] }) => {
                     variant="secondary"
                     className="absolute -bottom-3 left-2 text-lg bg-blue-500 text-white px-3 "
                   >
-                    {achievement.category}
+                    {achievement.description}
                   </Badge>
                 </div>
               </CardHeader>
@@ -45,11 +45,16 @@ const AchievementPage = ({ achievements }: { achievements: Achievement[] }) => {
 
                   {/* Description + Link */}
                   <div className="flex items-center justify-between text-sm text-gray-300">
-                    <p className="line-clamp-2">
+                    {
+                      achievement.description&&(
+                                            <p className="line-clamp-2">
                       {achievement.description.length > 100
                         ? `${achievement.description.slice(0, 100)}...`
                         : achievement.description}
                     </p>
+                      )
+                    }
+
                     {achievement.link && (
                       <a
                         href={achievement.link}
@@ -65,7 +70,7 @@ const AchievementPage = ({ achievements }: { achievements: Achievement[] }) => {
                   <div className="text-lg text-gray-400 flex items-center gap-1">
                     <CalendarDays className="w-3 h-3" />
                     {format(
-                      new Date(achievement.achievementDate),
+                      new Date(achievement.uploadedAt),
                       "dd MMM yyyy"
                     )}
                   </div>

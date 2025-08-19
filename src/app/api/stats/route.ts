@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient, ResearchWorkType, UserType } from "@prisma/client";
 import { z } from 'zod';
+import { 
+  getAuthenticatedUser, 
+  hasAccess, 
+  ApiErrors 
+} from "@/utils/apiAuth";
 
 const prisma = new PrismaClient();
 
@@ -28,23 +33,22 @@ const getResearchWorkStatsQuerySchema = z.object({
 // =======================================================
 
 export async function GET(request: NextRequest) {
-  // TODO: Implement an authentication/authorization middleware or check here.
-  // This is a placeholder for where you would get the user's role and ID from a JWT or session.
-  const { searchParams } = new URL(request.url);
-  const type = searchParams.get('type');
-  const userId = searchParams.get('userId'); // Assuming userId is passed for role-specific queries
-  const userRole = searchParams.get('userRole'); // Assuming userRole is passed for authorization
-
-  if (!userId || !userRole) {
-    return NextResponse.json({ message: "Authentication required." }, { status: 401 });
-  }
-
   try {
+    // Check authentication
+    const userSession = await getAuthenticatedUser();
+    if (!userSession) {
+      return NextResponse.json(ApiErrors.UNAUTHORIZED, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get('type');
+
     switch (type) {
       case 'admin':
-        if (userRole !== 'ADMIN') {
-          return NextResponse.json({ message: "Forbidden: Admins only." }, { status: 403 });
+        if (!hasAccess(userSession.userType, [UserType.ADMIN])) {
+          return NextResponse.json(ApiErrors.FORBIDDEN, { status: 403 });
         }
+        
         const userCounts = await prisma.user.groupBy({ by: ['userType'], _count: { id: true } });
         const studentStats = await prisma.student.groupBy({ by: ['department', 'year'], _count: { id: true } });
         const teacherStats = await prisma.teacher.groupBy({ by: ['affiliation', 'designation'], _count: { id: true } });
@@ -58,12 +62,13 @@ export async function GET(request: NextRequest) {
         });
 
       case 'teacher':
-        if (userRole !== 'TEACHER') {
-          return NextResponse.json({ message: "Forbidden: Teachers only." }, { status: 403 });
+        if (!hasAccess(userSession.userType, [UserType.TEACHER, UserType.ADMIN])) {
+          return NextResponse.json(ApiErrors.FORBIDDEN, { status: 403 });
         }
-        const uploadedWorkCount = await prisma.researchWork.count({ where: { uploadedById: userId } });
-        const advisedPaperCount = await prisma.researchPaper.count({ where: { facultyAdvisors: { some: { id: userId } } } });
-        const advisedProjectCount = await prisma.ongoingProject.count({ where: { facultyAdvisors: { some: { id: userId } } } });
+        
+        const uploadedWorkCount = await prisma.researchWork.count({ where: { uploadedById: userSession.id } });
+        const advisedPaperCount = await prisma.researchPaper.count({ where: { facultyAdvisors: { some: { id: userSession.id } } } });
+        const advisedProjectCount = await prisma.ongoingProject.count({ where: { facultyAdvisors: { some: { id: userSession.id } } } });
 
         return NextResponse.json({
           uploadedWorkCount,
@@ -72,16 +77,33 @@ export async function GET(request: NextRequest) {
         });
 
       case 'student':
-        if (userRole !== 'STUDENT') {
-          return NextResponse.json({ message: "Forbidden: Students only." }, { status: 403 });
+        if (!hasAccess(userSession.userType, [UserType.STUDENT, UserType.ADMIN])) {
+          return NextResponse.json(ApiErrors.FORBIDDEN, { status: 403 });
         }
-        const studentProfile = await prisma.student.findUnique({ where: { userId: userId }, select: { id: true } });
-        if (!studentProfile) {
+        
+        if (userSession.userType === UserType.STUDENT && !userSession.studentProfile) {
           return NextResponse.json({ message: "Student profile not found" }, { status: 404 });
         }
 
-        const paperCounts = await prisma.researchPaper.groupBy({ by: ['status'], where: { studentId: studentProfile.id }, _count: { id: true } });
-        const projectCounts = await prisma.ongoingProject.groupBy({ by: ['status'], where: { studentId: studentProfile.id }, _count: { id: true } });
+        const studentId = userSession.userType === UserType.ADMIN 
+          ? searchParams.get('studentId') 
+          : userSession.studentProfile?.id;
+
+        if (!studentId) {
+          return NextResponse.json({ message: "Student ID required" }, { status: 400 });
+        }
+
+        const paperCounts = await prisma.researchPaper.groupBy({ 
+          by: ['status'], 
+          where: { studentId: studentId }, 
+          _count: { id: true } 
+        });
+        
+        const projectCounts = await prisma.ongoingProject.groupBy({ 
+          by: ['status'], 
+          where: { studentId: studentId }, 
+          _count: { id: true } 
+        });
 
         return NextResponse.json({
           researchPaperCounts: paperCounts.map(item => ({ status: item.status, count: item._count.id })),
@@ -93,6 +115,6 @@ export async function GET(request: NextRequest) {
     }
   } catch (error) {
     console.error("Error fetching stats:", error);
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+    return NextResponse.json(ApiErrors.INTERNAL_ERROR, { status: 500 });
   }
 }

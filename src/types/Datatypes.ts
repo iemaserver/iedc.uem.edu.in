@@ -1,62 +1,238 @@
-
-import { IconDashboard } from "@tabler/icons-react"
 import {
-  AreaChart,
-  BrainCircuit,
-  Container,
-  Home,
-  LucideLayoutDashboard,
-  LucidePaperclip,
-  Newspaper,
-  PartyPopper,
+  IconDashboard,
+  IconPaperclip,
+  IconUsers,
+  IconTallymark2,
+  IconFileUpload,
+  IconFileCertificate,
+  IconTournament,
+  IconFileText,
+  IconUserSearch,
+  IconBook2,
+  IconCoin,
+  IconUsersGroup,
+  IconUser,
+  IconAward,
+  IconFile,
+  IconFiles,
+  IconBriefcase,
+  IconTrophy,
+  IconGraphOff,
+  IconBell,
+  IconSettings,
+  IconMessage,
+  IconLogout,
+} from "@tabler/icons-react";
+
+import {
+  LayoutDashboard,
+  User as LucideUser,
   Search,
-  Settings,
-  Upload,
-  UserIcon,
-  UserPen,
-  UserPenIcon,
-} from "lucide-react"
-// This is sample data.
+  Settings as LucideSettings,
+  Bell,
+  Trophy,
+  ShieldCheck,
+  FolderOpen,
+} from "lucide-react";
 
+// Define a type for a single dashboard item
+type DashboardItem = {
+  title: string;
+  url: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  items?: DashboardSubItem[];
+};
 
-export const DashboardItems = [
+// Define a type for a sub-item
+type DashboardSubItem = {
+  title: string;
+  url: string;
+  icon?: React.ComponentType<{ className?: string }>;
+};
+
+// Define a type for a dashboard group
+export type DashboardGroup = {
+  title: string;
+  url: string;
+  icon: React.ComponentType<{ className?: string }>;
+  access: ("ADMIN" | "TEACHER" | "STUDENT")[];
+  isOpen?: boolean;
+  items: (DashboardItem | DashboardSubItem)[];
+};
+
+export const DashboardItems: DashboardGroup[] = [
   {
     title: "Dashboard",
-    url: "#",
-    icon: LucideLayoutDashboard,
-    isActive: true,
+    url: "/dashboard",
+    icon: LayoutDashboard,
+    access: ["ADMIN", "TEACHER", "STUDENT"],
+    isOpen: true,
     items: [
-      { title: "Home", url: "/",icon:Home },
-      { title: "Dashboard", url: "dashboard" ,icon:IconDashboard},
-      { title: "Upload Paper", url: "dashboard/paper/upload",icon: Upload },
-      { title: "Upload Project", url: "dashboard/paper/project",icon: Upload },
-      { title: "My Projects", url: "dashboard/student/projects",icon: Container, access: ["STUDENT"] },
-      { title: "Search a Paper", url: "paper",icon: Search },
-      { title: "Update profile", url: "dashboard/profile",icon: Settings },
+      {
+        title: "Overview",
+        url: "/dashboard",
+        icon: IconDashboard,
+      },
+      {
+        title: "Profile",
+        url: "/dashboard/profile",
+        icon: LucideUser,
+      },
+      {
+        title: "Notifications",
+        url: "/dashboard/notifications",
+        icon: Bell,
+      },
+      {
+        title: "Messages",
+        url: "/dashboard/messages",
+        icon: IconMessage,
+      },
+      {
+        title: "Analytics",
+        url: "/dashboard/analytics",
+        icon: IconGraphOff,
+      },
+      {
+        title: "Settings",
+        url: "/dashboard/settings",
+        icon: LucideSettings,
+      },
+      {
+        title: "Logout",
+        url: "/logout",
+        icon: IconLogout,
+      },
     ],
   },
+
+  // Student Specific Routes
   {
-    title: "Faculty Work Panel",
+    title: "My Work",
     url: "#",
-    icon: AreaChart,
-    access: ["FACULTY"],
+    icon: IconBook2,
+    access: ["STUDENT", "ADMIN"],
     items: [
-      { title: "Research Paper ",icon:LucidePaperclip, url: "dashboard/faculty/paper" },
-      { title: "Ongoing Project ",icon:Container, url: "dashboard/faculty/project" },
+      {
+        title: "My Research Papers",
+        url: "/dashboard/my-papers",
+        icon: IconPaperclip,
+      },
+      {
+        title: "My Ongoing Projects",
+        url: "/dashboard/my-projects",
+        icon: IconFiles,
+      },
+      {
+        title: "Upload New Paper",
+        url: "/dashboard/paper/upload",
+        icon: IconFileUpload,
+      },
+      {
+        title: "Upload New Project",
+        url: "/dashboard/project/upload",
+        icon: IconFileUpload,
+      },
+      {
+        title: "My Achievements",
+        url: "/dashboard/my-achievements",
+        icon: IconAward,
+      },
+      {
+        title: "My Competitions",
+        url: "/dashboard/my-competitions",
+        icon: IconTrophy,
+      },
     ],
   },
+
+  // Teacher Specific Routes
   {
-    title: "Admin Work Panel",
+    title: "Teacher Panel",
     url: "#",
-    icon: BrainCircuit ,
+    icon: IconBriefcase,
+    access: ["TEACHER", "ADMIN"],
+    items: [
+      {
+        title: "My Research Works",
+        url: "/dashboard/teacher/research",
+        icon: IconFile,
+      },
+      {
+        title: "Advised Papers",
+        url: "/dashboard/teacher/papers",
+        icon: IconPaperclip,
+      },
+      {
+        title: "Advised Projects",
+        url: "/dashboard/teacher/projects",
+        icon: IconFiles,
+      },
+      {
+        title: "Upload Research Work",
+        url: "/dashboard/teacher/research/upload",
+        icon: IconFileUpload,
+      },
+      {
+        title: "Student Search",
+        url: "/dashboard/teacher/students",
+        icon: IconUserSearch,
+      },
+      {
+        title: "Approvals",
+        url: "/dashboard/teacher/approvals",
+        icon: ShieldCheck,
+      },
+    ],
+  },
+
+  // Admin Specific Routes
+  {
+    title: "Admin Panel",
+    url: "#",
+    icon: IconTallymark2,
     access: ["ADMIN"],
     items: [
-      { title: "Faculty List Work", url: "dashboard/reviewerlist" ,icon:UserPenIcon},
-      { title: "Paper Work", url: "dashboard/adminpaperwork" ,icon:PartyPopper},
-      { title: "Ongoing Project Work", url: "dashboard/OnGoingProject" ,icon:PartyPopper},
-      { title: "Acheivement", url: "dashboard/achievement" ,icon:PartyPopper},
-      { title: "User List", url: "dashboard/userlist" ,icon:UserIcon},
+      {
+        title: "System Stats",
+        url: "/dashboard/admin/stats",
+        icon: IconTallymark2,
+      },
+      {
+        title: "Manage Users",
+        url: "/dashboard/admin/users",
+        icon: IconUsersGroup,
+      },
+      {
+        title: "Manage Achievements",
+        url: "/dashboard/admin/achievements",
+        icon: IconAward,
+      },
+      {
+        title: "Manage Competitions",
+        url: "/dashboard/admin/competitions",
+        icon: IconTournament,
+      },
+      {
+        title: "All Research Works",
+        url: "/dashboard/admin/research-works",
+        icon: IconFileText,
+      },
+      {
+        title: "All Projects",
+        url: "/dashboard/admin/projects",
+        icon: FolderOpen,
+      },
+      {
+        title: "Payments",
+        url: "/dashboard/admin/payments",
+        icon: IconCoin,
+      },
+      {
+        title: "System Settings",
+        url: "/dashboard/admin/settings",
+        icon: IconSettings,
+      },
     ],
   },
-]
-
+];

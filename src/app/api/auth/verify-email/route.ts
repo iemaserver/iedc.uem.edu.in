@@ -1,14 +1,13 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+
 import prisma from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const token = searchParams.get("token");
 
-  const { token } = req.query;
   if (!token || typeof token !== "string") {
-    return res.status(400).json({ error: "Token is required" });
+    return NextResponse.json({ error: "Token is required" }, { status: 400 });
   }
 
   try {
@@ -17,11 +16,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (!user) {
-      return res.status(400).json({ error: "Invalid token" });
+      return NextResponse.json({ error: "Invalid token" }, { status: 400 });
     }
 
     if (!user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
-      return res.status(400).json({ error: "Token expired" });
+      return NextResponse.json({ error: "Token expired" }, { status: 400 });
     }
 
     await prisma.user.update({
@@ -33,9 +32,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
 
-    return res.status(200).json({ message: "Email verified successfully" });
+    return NextResponse.json({ message: "Email verified successfully" }, { status: 200 });
   } catch (error) {
     console.error("Verify email error:", error);
-    return res.status(500).json({ error: "Internal server error" });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

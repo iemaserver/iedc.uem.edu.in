@@ -51,20 +51,29 @@ export const userSchemas = {
 };
 
 // Research paper validation schemas
+export const researchPaperSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(200, 'Title too long'),
+  abstract: z.string().optional(),
+  keywords: z.array(z.string()).optional().default([]),
+  image: z.string().optional(),
+  fileUrl: z.string().optional(),
+  projectType: z.enum(['PERSONAL', 'COLLABORATIVE', 'IN_IEDC']),
+  facultyAdvisorIds: z.array(z.string()).optional().default([]),
+  memberIds: z.array(z.string()).optional().default([]),
+});
+
 export const paperSchemas = {
-  create: z.object({
-    title: z.string().min(1, 'Title is required').max(200, 'Title too long'),
-    abstract: z.string().min(1, 'Abstract is required').max(2000, 'Abstract too long'),
-    filePath: z.string().min(1, 'File path is required'),
-    keywords: commonSchemas.tags,
-    facultyAdvisors: z.array(commonSchemas.id).min(1, 'At least one faculty advisor is required'),
-  }),
+  create: researchPaperSchema,
   
   update: z.object({
     title: z.string().min(1, 'Title is required').max(200, 'Title too long').optional(),
-    abstract: z.string().min(1, 'Abstract is required').max(2000, 'Abstract too long').optional(),
-    filePath: z.string().optional(),
-    keywords: commonSchemas.tags.optional(),
+    abstract: z.string().optional(),
+    keywords: z.array(z.string()).optional(),
+    image: z.string().optional(),
+    fileUrl: z.string().optional(),
+    projectType: z.enum(['PERSONAL', 'COLLABORATIVE', 'IN_IEDC']).optional(),
+    facultyAdvisorIds: z.array(z.string()).optional(),
+    memberIds: z.array(z.string()).optional(),
     status: commonSchemas.paperStatus.optional(),
     reviewerStatus: commonSchemas.reviewerStatus.optional(),
     reviewerId: commonSchemas.id.optional(),
@@ -72,6 +81,35 @@ export const paperSchemas = {
 };
 
 // Ongoing project validation schemas
+export const ongoingProjectSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(200, 'Title too long'),
+  abstract: z.string().optional(),
+  keywords: z.array(z.string()).optional().default([]),
+  image: z.string().optional(),
+  filepath: z.string().optional(),
+  status: z.enum(['ONGOING', 'COMPLETED', 'ACCEPTED', 'REJECTED']).optional(),
+  startDate: z.string().optional(), // Will be converted to Date in API
+  endDate: z.string().optional(), // Will be converted to Date in API
+  facultyAdvisorIds: z.array(z.string()).optional().default([]),
+  memberIds: z.array(z.string()).optional().default([]),
+});
+
+export const ongoingProjectSchemas = {
+  create: ongoingProjectSchema,
+  
+  update: z.object({
+    title: z.string().min(1, 'Title is required').max(200, 'Title too long').optional(),
+    abstract: z.string().optional(),
+    keywords: z.array(z.string()).optional(),
+    image: z.string().optional(),
+    filepath: z.string().optional(),
+    status: z.enum(['ONGOING', 'COMPLETED', 'ACCEPTED', 'REJECTED']).optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+    facultyAdvisorIds: z.array(z.string()).optional(),
+    memberIds: z.array(z.string()).optional(),
+  }),
+};
 export const projectSchemas = {
   create: z.object({
     title: z.string().min(1, 'Title is required').max(200, 'Title too long'),

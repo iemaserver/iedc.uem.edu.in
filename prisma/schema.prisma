@@ -5,11 +5,17 @@ generator client {
 datasource db {
   provider = "cockroachdb"
   url      = env("DATABASE_URL")
+
+
+  
 }
 
 // =======================================================
 // ENUMS
 // =======================================================
+enum crdb_internal_region {
+  aws_ap_south_1 @map("aws-ap-south-1")
+}
 
 enum UserType {
   STUDENT
@@ -35,10 +41,25 @@ enum PublicationStatus {
   PUBLISHED
 }
 
-enum SubmissionStatus {
-  UNDER_REVIEW
+
+
+enum ResearchPaperStatus {
   UPLOADED
-  PUBLISHED
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+}
+enum ProjectType {
+  PERSONAL
+  COLLABORATIVE
+  IN_IEDC
+}
+
+
+enum OngoingProjectStatus {
+  ONGOING
+  COMPLETED
+  ACCEPTED
   REJECTED
 }
 
@@ -67,6 +88,9 @@ model User {
   memberOfResearchPapers ResearchPaper[] @relation("ResearchPaperMembers")
   advisedOngoingProjects OngoingProject[] @relation("OngoingProjectAdvisors")
   memberOfOngoingProjects OngoingProject[] @relation("OngoingProjectMembers")
+  // NextAuth relations
+  accounts        Account[]
+  sessions        Session[]
 }
 
 model Student {
@@ -274,7 +298,7 @@ model Achievement {
   id          String   @id @default(uuid())
   title       String
   description String?
-  imageUrl    String?
+  imageUrl    String
   uploadedAt  DateTime @default(now())
   isPublished Boolean  @default(false)
   link        String?
@@ -293,10 +317,11 @@ model ResearchPaper {
   title           String
   abstract        String?
   image           String?
-  status          SubmissionStatus
+  fileUrl         String?
+  status          ResearchPaperStatus @default(UPLOADED)
   createdAt       DateTime           @default(now()) 
   updatedAt       DateTime           @updatedAt
-
+  projectType     ProjectType @default(PERSONAL)
   keywords        String[]
   facultyAdvisors User[] @relation("ResearchPaperAdvisors")
   members         User[] @relation("ResearchPaperMembers")
@@ -309,7 +334,10 @@ model OngoingProject {
   title           String
   abstract        String?
   image           String?
-  status          SubmissionStatus
+  filepath        String?
+  status          OngoingProjectStatus @default(ONGOING)
+  startDate       DateTime?    @db.Date
+  endDate         DateTime?    @db.Date
   createdAt       DateTime      @default(now()) 
   updatedAt       DateTime      @updatedAt
 
@@ -347,4 +375,43 @@ model UpcomingCompetition {
   updatedAt        DateTime  @updatedAt
 
   @@index([startDate])
+}
+
+// =======================================================
+// NEXTAUTH MODELS (Required for NextAuth.js)
+// =======================================================
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }

@@ -1,9 +1,6 @@
 "use client";
 import React from "react";
-import {
-  OnGoingProject as PrismaOnGoingProject,
-  ProjectStatus,
-} from "@prisma/client";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -17,11 +14,12 @@ import Autoplay from "embla-carousel-autoplay";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
+import { OngoingProject as PrismaOngoingProject, OngoingProjectStatus } from "@prisma/client";
 
-interface OnGoingProjectWithRelations extends PrismaOnGoingProject {
+interface OnGoingProjectWithRelations extends PrismaOngoingProject {
   facultyAdvisors: { id: string; name: string; email: string }[];
   members: { id: string; name: string; email: string }[];
-  status: ProjectStatus;
+  status: OngoingProjectStatus;
 }
 
 function CarouselOngoingProject({
@@ -59,7 +57,7 @@ function CarouselOngoingProject({
                     {/* Image */}
                     <div className="w-full h-[20rem] relative rounded-lg overflow-hidden shadow-md">
                       <Image
-                        src={project.projectImage || "/home/gpu.png"}
+                        src={project.image || "/home/gpu.png"}
                         alt={`${project.title} image`}
                         width={600}
                         height={400}
@@ -81,12 +79,11 @@ function CarouselOngoingProject({
                               "bg-yellow-100 text-yellow-800 border-yellow-300",
                             project.status === "COMPLETED" &&
                               "bg-green-100 text-green-800 border-green-300",
-                            project.status === "CANCELLED" &&
+                            project.status === "REJECTED" &&
                               "bg-red-100 text-red-800 border-red-300",
-                            project.status === "UPLOAD" &&
-                              "bg-gray-100 text-gray-800 border-gray-300",
-                            project.status === "PUBLISH" &&
-                              "bg-blue-100 text-blue-800 border-blue-300"
+                            project.status === "ACCEPTED" &&
+                              "bg-gray-100 text-blue-800 border-blue-300",
+
                           )}
                         >
                           {project.status}
@@ -94,29 +91,29 @@ function CarouselOngoingProject({
                       </div>
 
                       <p className="text-sm text-gray-700 leading-normal mb-3">
-                        {project.description}
+                        {project.abstract}
                       </p>
 
                       <div className="text-sm text-gray-600 space-y-1 mb-3">
                         <p>
                           <span className="font-semibold">Start Date:</span>{" "}
-                          {formatDate(project.startDate)}
+                          {formatDate(project.createdAt)}
                         </p>
                         <p>
                           <span className="font-semibold">End Date:</span>{" "}
-                          {project.endDate
-                            ? formatDate(project.endDate)
+                          {project.updatedAt
+                            ? formatDate(project.updatedAt)
                             : "Ongoing"}
                         </p>
                       </div>
 
-                      {project.projectTags?.length > 0 && (
+                      {project.keywords?.length > 0 && (
                         <div className="mb-3">
                           <h4 className="font-semibold mb-1 text-sm text-gray-800">
                             Tags:
                           </h4>
                           <div className="flex flex-wrap gap-2">
-                            {project.projectTags.map((tag, i) => (
+                            {project.keywords.map((tag, i) => (
                               <Badge key={i} variant="secondary">
                                 {tag}
                               </Badge>
@@ -152,20 +149,7 @@ function CarouselOngoingProject({
                         </div>
                       </div>
 
-                      {project.projectLink && (
-                        <div className="mt-auto pt-2 border-t border-gray-200">
-                          <Link
-                            href={project.projectLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-block"
-                          >
-                            <Badge className="bg-blue-600 text-white hover:bg-blue-700 transition-colors py-2 px-4 text-sm">
-                              View Project
-                            </Badge>
-                          </Link>
-                        </div>
-                      )}
+                     
                     </div>
                   </CardContent>
                 </Card>
