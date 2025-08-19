@@ -18,46 +18,32 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import Image from "next/image"
+import { useSession } from "next-auth/react"
+import { Avatar } from "@radix-ui/react-avatar"
+import { AvatarImage } from "./ui/avatar"
 
-export function TeamSwitcher({
-  name,
-  profileImage,
-  userType
-}: {
-  name: string
-  profileImage: string
-  userType: string
-  }
-) {
+export function TeamSwitcher() {
   const { isMobile } = useSidebar()
- 
-
+  const {data:session} = useSession()
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <div>
             <SidebarMenuButton
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              
-                <Image
-                  src={profileImage}
-                  alt={name}
-                  className="h-7 w-7 rounded-md object-cover"
-                    width={100}
-                    height={100}
-                />
-              
+              <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+                <Avatar>
+                  <AvatarImage src={session?.user?.image || "/default-avatar.png"} alt="Team Logo" />
+                </Avatar>
+              </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{name}</span>
-                <span className="truncate text-xs">{userType}</span>
+                <span className="truncate font-medium">{session?.user.fullName}</span>
+                <span className="truncate text-xs">{session?.user.email}</span>
               </div>
               <ChevronsUpDown className="ml-auto" />
             </SidebarMenuButton>
-      
-        </div>
+         
       </SidebarMenuItem>
     </SidebarMenu>
   )

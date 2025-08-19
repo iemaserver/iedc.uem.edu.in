@@ -92,10 +92,10 @@ export function CarouselPublishedProject({
                         Reviewers: {paper.reviewer.name}
                       </p>
                     )}
-                    {paper.submissionDate && (
+                    {paper.createdAt && (
                       <p className="text-xs text-gray-400 mt-2">
                         Published on:{" "}
-                        {new Date(paper.submissionDate).toLocaleDateString()}
+                        {new Date(paper.createdAt).toLocaleDateString()}
                       </p>
                     )}
                   </CardContent>
@@ -112,7 +112,7 @@ export function CarouselPublishedProject({
                       <Button variant="default">
                         
                         <a
-                          href={paper.filePath}
+                          href={paper.image!}
                           target="_blank"
                           rel="noopener noreferrer">
                             <DownloadIcon className="w-4 h-4 mr-2 inline" />

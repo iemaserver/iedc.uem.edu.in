@@ -27,14 +27,24 @@ const secondaryVariant = {
 
 export const FileUpload = ({
   onChange,
+  fileTypes,
+  maxSize,
+  multiple = false,
+  endpoint,
+  className,
 }: {
   onChange?: (files: File[]) => void;
+  fileTypes?: string[];
+  maxSize?: number;
+  multiple?: boolean;
+  endpoint?: string;
+  className?: string;
 }) => {
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (newFiles: File[]) => {
-    setFiles((prevFiles) => [...prevFiles, ...newFiles]);
+    setFiles((prevFiles) => multiple ? [...prevFiles, ...newFiles] : newFiles);
     onChange && onChange(newFiles);
   };
 
@@ -43,16 +53,21 @@ export const FileUpload = ({
   };
 
   const { getRootProps, isDragActive } = useDropzone({
-    multiple: false,
+    multiple,
     noClick: true,
+    accept: fileTypes ? fileTypes.reduce((acc, type) => {
+      acc[type] = [];
+      return acc;
+    }, {} as Record<string, string[]>) : undefined,
+    maxSize: maxSize || undefined,
     onDrop: handleFileChange,
     onDropRejected: (error) => {
-      //console.log(error);
+      console.log("File rejected:", error);
     },
   });
 
   return (
-    <div className="w-full" {...getRootProps()}>
+    <div className={`w-full ${className || ""}`} {...getRootProps()}>
       <motion.div
         onClick={handleClick}
         whileHover="animate"
@@ -62,6 +77,8 @@ export const FileUpload = ({
           ref={fileInputRef}
           id="file-upload-handle"
           type="file"
+          accept={fileTypes?.join(",")}
+          multiple={multiple}
           onChange={(e) => handleFileChange(Array.from(e.target.files || []))}
           className="hidden"
         />
