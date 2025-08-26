@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
     if (!userSession) {
       return NextResponse.json(ApiErrors.UNAUTHORIZED, { status: 401 });
     }
+    console.log("User session is usertype is ", userSession.userType);
 
     if (userSession.userType !== UserType.STUDENT) {
       return NextResponse.json(ApiErrors.FORBIDDEN, { status: 403 });

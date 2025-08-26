@@ -9,6 +9,24 @@
 .hide-scrollbar::-webkit-scrollbar {
   display: none; /* Chrome, Safari, and Opera */
 }
+
+.scrollbar-thin {
+  scrollbar-width: thin; /* Firefox */
+  -ms-overflow-style: -ms-autohiding-scrollbar; /* Internet Explorer and Edge */
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px; /* Chrome, Safari, and Opera */
+  height: 8px;
+  opacity: 0.5;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(189, 7, 7, 0.5);
+  border-radius: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background-color: green;
+}
+
 /* Add this custom class to your globals.css file */
 .signup-background {
   background-image: url('/signupbg.jpg');

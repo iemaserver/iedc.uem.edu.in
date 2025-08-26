@@ -33,6 +33,7 @@ import {
   Trophy,
   ShieldCheck,
   FolderOpen,
+  BookImage,
 } from "lucide-react";
 
 // Define a type for a single dashboard item
@@ -83,11 +84,7 @@ export const DashboardItems: DashboardGroup[] = [
         url: "/dashboard/notifications",
         icon: Bell,
       },
-      {
-        title: "Messages",
-        url: "/dashboard/messages",
-        icon: IconMessage,
-      },
+
       {
         title: "Analytics",
         url: "/dashboard/analytics",
@@ -115,12 +112,12 @@ export const DashboardItems: DashboardGroup[] = [
     items: [
       {
         title: "My Research Papers",
-        url: "/dashboard/my-papers",
+        url: "/dashboard/paper",
         icon: IconPaperclip,
       },
       {
         title: "My Ongoing Projects",
-        url: "/dashboard/my-projects",
+        url: "/dashboard/project",
         icon: IconFiles,
       },
       {
@@ -133,16 +130,7 @@ export const DashboardItems: DashboardGroup[] = [
         url: "/dashboard/project/upload",
         icon: IconFileUpload,
       },
-      {
-        title: "My Achievements",
-        url: "/dashboard/my-achievements",
-        icon: IconAward,
-      },
-      {
-        title: "My Competitions",
-        url: "/dashboard/my-competitions",
-        icon: IconTrophy,
-      },
+      
     ],
   },
 
@@ -154,9 +142,14 @@ export const DashboardItems: DashboardGroup[] = [
     access: ["TEACHER", "ADMIN"],
     items: [
       {
-        title: "My Research Works",
-        url: "/dashboard/teacher/research",
-        icon: IconFile,
+        title: "Copyright Management",
+        url: "/dashboard/teacher/copyright",
+        icon: IconCoin,
+      },
+      {
+        title: "Patent Management",
+        url: "/dashboard/teacher/patent",
+        icon: BookImage,
       },
       {
         title: "Advised Papers",
@@ -173,16 +166,7 @@ export const DashboardItems: DashboardGroup[] = [
         url: "/dashboard/teacher/research/upload",
         icon: IconFileUpload,
       },
-      {
-        title: "Student Search",
-        url: "/dashboard/teacher/students",
-        icon: IconUserSearch,
-      },
-      {
-        title: "Approvals",
-        url: "/dashboard/teacher/approvals",
-        icon: ShieldCheck,
-      },
+    
     ],
   },
 

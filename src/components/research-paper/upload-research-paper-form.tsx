@@ -11,12 +11,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Upload, X, Plus } from "lucide-react";
-
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProjectType, ResearchPaperStatus } from "@prisma/client";
 import toast from "react-hot-toast";
 import axios from "axios";
 import { MultiSelect } from "../ui/multi-select";
+import { FileUpload } from "../ui/file-upload";
+import { uploadFile } from "@/lib/appwrite";
 
 const researchPaperSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -61,6 +62,9 @@ export function UploadResearchPaperForm({
   const [students, setStudents] = useState<Student[]>([]);
   const [keywords, setKeywords] = useState<string[]>(initialData?.keywords || []);
   const [newKeyword, setNewKeyword] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadedFileUrl, setUploadedFileUrl] = useState<string>(initialData?.fileUrl || "");
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string>(initialData?.image || "");
 
   const {
     register,
@@ -82,6 +86,15 @@ export function UploadResearchPaperForm({
       fileUrl: initialData?.fileUrl || "",
     }
   });
+
+  // Update form values when uploaded files change
+  useEffect(() => {
+    setValue("fileUrl", uploadedFileUrl);
+  }, [uploadedFileUrl, setValue]);
+
+  useEffect(() => {
+    setValue("image", uploadedImageUrl);
+  }, [uploadedImageUrl, setValue]);
 
   // Fetch faculties and students for selection
   useEffect(() => {
@@ -131,7 +144,45 @@ export function UploadResearchPaperForm({
   };
 
   const removeKeyword = (keyword: string) => {
-    setKeywords(keywords.filter(k => k !== keyword));
+    const updatedKeywords = keywords.filter(k => k !== keyword);
+    setKeywords(updatedKeywords);
+    setValue("keywords", updatedKeywords);
+  };
+
+  const handleFileUpload = async (files: File[]) => {
+    if (files.length === 0) return;
+    
+    const file = files[0];
+    setIsUploading(true);
+    
+    try {
+      const url = await uploadFile(file);
+      setUploadedFileUrl(url);
+      toast.success("File uploaded successfully!");
+    } catch (error) {
+      console.error("File upload error:", error);
+      toast.error("Failed to upload file");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleImageUpload = async (files: File[]) => {
+    if (files.length === 0) return;
+    
+    const file = files[0];
+    setIsUploading(true);
+    
+    try {
+      const url = await uploadFile(file);
+      setUploadedImageUrl(url);
+      toast.success("Image uploaded successfully!");
+    } catch (error) {
+      console.error("Image upload error:", error);
+      toast.error("Failed to upload image");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const onSubmit = async (data: ResearchPaperFormData) => {
@@ -146,7 +197,12 @@ export function UploadResearchPaperForm({
       const response = await axios({
         method,
         url: endpoint,
-        data: { ...data, keywords }
+        data: { 
+          ...data, 
+          keywords,
+          fileUrl: uploadedFileUrl || data.fileUrl,
+          image: uploadedImageUrl || data.image
+        }
       });
 
       toast.success(
@@ -162,6 +218,8 @@ export function UploadResearchPaperForm({
       if (mode === "create") {
         reset();
         setKeywords([]);
+        setUploadedFileUrl("");
+        setUploadedImageUrl("");
       }
     } catch (error: any) {
       console.error("Error submitting research paper:", error);
@@ -259,13 +317,18 @@ export function UploadResearchPaperForm({
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
-              {keywords.map((keyword) => (
-                <Badge key={keyword} variant="secondary" className="flex items-center gap-1">
+              {keywords.map((keyword, index) => (
+                <Badge key={`${keyword}-${index}`} variant="secondary" className="flex items-center gap-1">
                   {keyword}
-                  <X
-                    className="h-3 w-3 cursor-pointer"
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="p-0 w-4 h-4 hover:bg-transparent"
                     onClick={() => removeKeyword(keyword)}
-                  />
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
                 </Badge>
               ))}
             </div>
@@ -301,27 +364,82 @@ export function UploadResearchPaperForm({
 
           {/* File Upload */}
           <div className="space-y-2">
-            <Label htmlFor="fileUrl">Research Paper File</Label>
-            <Input
-              id="fileUrl"
-              type="url"
-              {...register("fileUrl")}
-              placeholder="Enter file URL or upload link"
-            />
+            <Label>Research Paper File *</Label>
+            {uploadedFileUrl ? (
+              <div className="p-4 border rounded-lg bg-green-50 border-green-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Upload className="h-4 w-4 text-green-600" />
+                    <span className="text-sm text-green-700">File uploaded successfully</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setUploadedFileUrl("")}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-green-600 mt-1 truncate">{uploadedFileUrl}</p>
+              </div>
+            ) : (
+              <FileUpload
+                onChange={handleFileUpload}
+                fileTypes={[".pdf", ".doc", ".docx"]}
+                maxSize={10 * 1024 * 1024} // 10MB
+                className="border-2 border-dashed border-gray-300 rounded-lg"
+              />
+            )}
+            {isUploading && (
+              <div className="flex items-center gap-2 text-sm text-blue-600">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Uploading file...
+              </div>
+            )}
             <p className="text-sm text-muted-foreground">
-              Upload your file to a cloud service and paste the link here
+              Upload your research paper (PDF, DOC, DOCX - Max 10MB)
             </p>
           </div>
 
           {/* Image/Thumbnail */}
           <div className="space-y-2">
-            <Label htmlFor="image">Thumbnail Image</Label>
-            <Input
-              id="image"
-              type="url"
-              {...register("image")}
-              placeholder="Enter image URL"
-            />
+            <Label>Thumbnail Image</Label>
+            {uploadedImageUrl ? (
+              <div className="p-4 border rounded-lg bg-green-50 border-green-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Upload className="h-4 w-4 text-green-600" />
+                    <span className="text-sm text-green-700">Image uploaded successfully</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setUploadedImageUrl("")}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="mt-2">
+                  <img 
+                    src={uploadedImageUrl} 
+                    alt="Thumbnail preview" 
+                    className="w-20 h-20 object-cover rounded border"
+                  />
+                </div>
+              </div>
+            ) : (
+              <FileUpload
+                onChange={handleImageUpload}
+                fileTypes={[".jpg", ".jpeg", ".png", ".webp"]}
+                maxSize={5 * 1024 * 1024} // 5MB
+                className="border-2 border-dashed border-gray-300 rounded-lg"
+              />
+            )}
+            <p className="text-sm text-muted-foreground">
+              Upload a thumbnail image (JPG, PNG, WEBP - Max 5MB)
+            </p>
           </div>
 
           {/* Submit Button */}
@@ -332,13 +450,15 @@ export function UploadResearchPaperForm({
               onClick={() => {
                 reset();
                 setKeywords([]);
+                setUploadedFileUrl("");
+                setUploadedImageUrl("");
               }}
-              disabled={isLoading}
+              disabled={isLoading || isUploading}
             >
               Reset
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={isLoading || isUploading}>
+              {(isLoading || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {mode === "edit" ? "Update" : "Upload"} Research Paper
             </Button>
           </div>

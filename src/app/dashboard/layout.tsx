@@ -1,14 +1,30 @@
-import { AppSidebar } from '@/components/app-sidebar';
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
-import { Separator } from '@/components/ui/separator';
-import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import React from 'react';
 
-export default function Layout({ children }: { children: React.ReactNode }) {
-    return (
-       <SidebarProvider >
-      <AppSidebar />
-      <SidebarInset>
+
+import { AppSidebar } from "@/components/app-sidebar";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { Separator } from "@/components/ui/separator";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+
+export default function Page({children}: {children: React.ReactNode}) {
+  
+  return (
+    <SidebarProvider className="flex flex-row">
+      <AppSidebar />  {/* dynamic width sidebar */}
+
+      {/* main content fills remaining space */}
+      <div className="flex flex-col flex-1 min-w-0">
+        {/* header */}
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1" />
@@ -31,10 +47,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Breadcrumb>
           </div>
         </header>
-          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-            {children}
+
+        {/* content wrapper */}
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+          {/* black container is always the width of main content */}
+          <div className="bg-black/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min 
+                          overflow-x-auto overflow-y-hidden">
+            
+            {/* table wrapper: at least parent width but can grow */}
+            <div className=" h-full min-w-full">
+              {children}
+            </div>
+
           </div>
-         </SidebarInset>
+        </div>
+      </div>
     </SidebarProvider>
-    );
+  );
 }

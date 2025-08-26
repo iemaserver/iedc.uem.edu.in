@@ -8,12 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { OngoingProjectStatus } from "@prisma/client";
+import { Loader2, Upload, X, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
 import { MultiSelect } from "../ui/multi-select";
+import { FileUpload } from "../ui/file-upload";
+import { uploadFile } from "@/lib/appwrite";
 
 const ongoingProjectSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -63,6 +67,9 @@ export function UploadOngoingProjectForm({
   const [students, setStudents] = useState<Student[]>([]);
   const [keywords, setKeywords] = useState<string[]>(initialData?.keywords || []);
   const [keywordInput, setKeywordInput] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadedFileUrl, setUploadedFileUrl] = useState<string>(initialData?.filepath || "");
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string>(initialData?.image || "");
 
   const {
     register,
@@ -156,6 +163,45 @@ export function UploadOngoingProjectForm({
   const removeKeyword = (index: number) => {
     const newKeywords = keywords.filter((_, i) => i !== index);
     setKeywords(newKeywords);
+    setValue("keywords", newKeywords);
+  };
+
+  const handleFileUpload = async (files: File[]) => {
+    if (files.length === 0) return;
+    
+    const file = files[0];
+    setIsUploading(true);
+    
+    try {
+      const url = await uploadFile(file);
+      setUploadedFileUrl(url);
+      setValue("filepath", url);
+      toast.success("File uploaded successfully!");
+    } catch (error) {
+      console.error("File upload error:", error);
+      toast.error("Failed to upload file");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleImageUpload = async (files: File[]) => {
+    if (files.length === 0) return;
+    
+    const file = files[0];
+    setIsUploading(true);
+    
+    try {
+      const url = await uploadFile(file);
+      setUploadedImageUrl(url);
+      setValue("image", url);
+      toast.success("Image uploaded successfully!");
+    } catch (error) {
+      console.error("Image upload error:", error);
+      toast.error("Failed to upload image");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const facultyOptions = facultyMembers.map(faculty => ({
@@ -275,19 +321,18 @@ export function UploadOngoingProjectForm({
             </div>
             <div className="flex flex-wrap gap-2 mt-2">
               {keywords.map((keyword, index) => (
-                <span
-                  key={index}
-                  className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-md"
-                >
+                <Badge key={`${keyword}-${index}`} variant="secondary" className="flex items-center gap-1">
                   {keyword}
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="p-0 w-4 h-4 hover:bg-transparent"
                     onClick={() => removeKeyword(index)}
-                    className="ml-1 text-blue-600 hover:text-blue-800"
                   >
-                    ×
-                  </button>
-                </span>
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
               ))}
             </div>
           </div>
@@ -329,14 +374,90 @@ export function UploadOngoingProjectForm({
             />
           </div>
 
-          {/* File Path */}
+          {/* File Upload */}
           <div className="space-y-2">
-            <Label htmlFor="filepath">File Path</Label>
-            <Input
-              id="filepath"
-              {...register("filepath")}
-              placeholder="Enter file path (optional)"
-            />
+            <Label>Project File</Label>
+            {uploadedFileUrl ? (
+              <div className="p-4 border rounded-lg bg-green-50 border-green-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Upload className="h-4 w-4 text-green-600" />
+                    <span className="text-sm text-green-700">File uploaded successfully</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setUploadedFileUrl("");
+                      setValue("filepath", "");
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-green-600 mt-1 truncate">{uploadedFileUrl}</p>
+              </div>
+            ) : (
+              <FileUpload
+                onChange={handleFileUpload}
+                fileTypes={[".pdf", ".doc", ".docx", ".zip", ".rar"]}
+                maxSize={20 * 1024 * 1024} // 20MB
+                className="border-2 border-dashed border-gray-300 rounded-lg"
+              />
+            )}
+            {isUploading && (
+              <div className="flex items-center gap-2 text-sm text-blue-600">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Uploading file...
+              </div>
+            )}
+            <p className="text-sm text-muted-foreground">
+              Upload project files (PDF, DOC, DOCX, ZIP, RAR - Max 20MB)
+            </p>
+          </div>
+
+          {/* Image/Thumbnail */}
+          <div className="space-y-2">
+            <Label>Project Thumbnail</Label>
+            {uploadedImageUrl ? (
+              <div className="p-4 border rounded-lg bg-green-50 border-green-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Upload className="h-4 w-4 text-green-600" />
+                    <span className="text-sm text-green-700">Image uploaded successfully</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setUploadedImageUrl("");
+                      setValue("image", "");
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="mt-2">
+                  <img 
+                    src={uploadedImageUrl} 
+                    alt="Project thumbnail" 
+                    className="w-20 h-20 object-cover rounded border"
+                  />
+                </div>
+              </div>
+            ) : (
+              <FileUpload
+                onChange={handleImageUpload}
+                fileTypes={[".jpg", ".jpeg", ".png", ".webp"]}
+                maxSize={5 * 1024 * 1024} // 5MB
+                className="border-2 border-dashed border-gray-300 rounded-lg"
+              />
+            )}
+            <p className="text-sm text-muted-foreground">
+              Upload a project thumbnail (JPG, PNG, WEBP - Max 5MB)
+            </p>
           </div>
 
           {/* Submit Button */}
@@ -347,14 +468,18 @@ export function UploadOngoingProjectForm({
               onClick={() => {
                 reset();
                 setKeywords([]);
+                setUploadedFileUrl("");
+                setUploadedImageUrl("");
               }}
+              disabled={isLoading || isUploading}
             >
               Reset
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading 
-                ? (isEditing ? "Updating..." : "Uploading...") 
-                : (isEditing ? "Update Project" : "Upload Project")
+            <Button type="submit" disabled={isLoading || isUploading}>
+              {(isLoading || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {(isLoading || isUploading) 
+                ? "Uploading..." 
+                : "Upload Project"
               }
             </Button>
           </div>

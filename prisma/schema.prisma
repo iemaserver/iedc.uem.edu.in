@@ -23,18 +23,6 @@ enum UserType {
   ADMIN
 }
 
-enum ResearchWorkType {
-  COPYRIGHT
-  PATENT
-  TRANSACTION
-  CONFERENCE
-  JOURNAL
-  BOOK_CHAPTER
-  GRANT_IN
-  FDP
-  CERTIFICATION
-}
-
 enum PublicationStatus {
   ACCEPTED
   COMMUNICATED
@@ -82,7 +70,6 @@ model User {
   // Relations
   studentProfile  Student?
   teacherProfile  Teacher?
-  researchWorks   ResearchWork[]
   achievements    Achievement[]
   advisedResearchPapers ResearchPaper[] @relation("ResearchPaperAdvisors")
   memberOfResearchPapers ResearchPaper[] @relation("ResearchPaperMembers")
@@ -116,65 +103,40 @@ model Teacher {
   subjectOfInterest String?
   officialMail    String?
   address         String?
+  copyrights      Copyright[] @relation("CopyrightInventors")
+  
+  patents         Patent[]
+  transactions    Transaction[]
+  conferences     Conference[]
+  journals        Journal[]
+  bookChapters    BookChapter[]
+  grantIns       GrantIn[]
+  fdps           FDP[]
+  certifications  Certification[]
 }
 
 // =======================================================
 // RESEARCH WORK
 // =======================================================
 
-model ResearchWork {
-  id           String             @id @default(uuid())
-  title        String
-  type         ResearchWorkType
-  uploadedById String
-  uploadedBy   User               @relation(fields: [uploadedById], references: [id])
-  isPublic     Boolean            @default(false)
-  createdAt    DateTime           @default(now()) 
-  updatedAt    DateTime           @updatedAt
-  isDeleted    Boolean            @default(false)
-  deletedAt    DateTime?
-
-  // Relations
-  authors      Author[]
-  keywords     String[]
-  copyright    Copyright?
-  patent       Patent?
-  transaction  Transaction?
-  conference   Conference?
-  journal      Journal?
-  bookChapter  BookChapter?
-  grantIn      GrantIn?
-  fdp          FDP?
-  certification Certification?
-}
-
-model Author {
-  id             String       @id @default(uuid())
-  name           String
-  researchWorkId String
-  researchWork   ResearchWork @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
-}
-
-
 // =======================================================
 // RESEARCH WORK TYPES
 // =======================================================
-
 model Copyright {
   id               String       @id @default(uuid())
-  researchWorkId   String       @unique
-  researchWork     ResearchWork @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
-  inventors        String
+  title            String
   filedAt          DateTime?    @db.Date
   submittedAt      DateTime?    @db.Date
   publishedAt      DateTime?    @db.Date
   grantedAt        DateTime?    @db.Date
+  inventors       Teacher[]     @relation("CopyrightInventors")
+  isPublic      Boolean      @default(false)
 }
+
 
 model Patent {
   id               String       @id @default(uuid())
-  researchWorkId   String       @unique
-  researchWork     ResearchWork @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
+  title            String
   inventors        String
   applicant        String
   applicationNo    String?
@@ -185,12 +147,13 @@ model Patent {
   grantedAt        DateTime?    @db.Date
   patentLink       String?
   country          String?
+  teacherId        String
+  teacher          Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  isPublic      Boolean      @default(false)
 }
 
 model Transaction {
   id               String          @id @default(uuid())
-  researchWorkId   String          @unique
-  researchWork     ResearchWork    @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
   transactionName  String
   typeOfTransaction String?
   indexOfTransaction String?
@@ -202,12 +165,13 @@ model Transaction {
   paperLinkDOI     String?
   registrationFees Float?
   reimbursementStatus String?
+  teacherId        String
+  teacher          Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  isPublic      Boolean      @default(false)
 }
 
 model Conference {
   id               String          @id @default(uuid())
-  researchWorkId   String          @unique
-  researchWork     ResearchWork    @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
   mode             String? // Online / Offline
   conferenceName   String
   typeOfConference String?
@@ -218,12 +182,13 @@ model Conference {
   paperLinkDOI     String?
   registrationFees Float?
   reimbursementStatus String?
+  teacherId        String
+  teacher          Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  isPublic      Boolean      @default(false)
 }
 
 model Journal {
   id               String          @id @default(uuid())
-  researchWorkId   String          @unique
-  researchWork     ResearchWork    @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
   journalName      String
   typeOfJournal    String?
   indexOfJournal   String?
@@ -235,22 +200,28 @@ model Journal {
   paperLinkDOI     String?
   registrationFees Float?
   reimbursementStatus String?
+  teacherId        String
+  teacher          Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  isPublic      Boolean      @default(false)
 }
 
 model BookChapter {
   id               String          @id @default(uuid())
-  researchWorkId   String          @unique
-  researchWork     ResearchWork    @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
   status           PublicationStatus
+  name            String
   registrationFees Float?
   reimbursementStatus String?
   isbnIssn         String?
+  teacherId        String
+  teacher          Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  isPublic      Boolean      @default(false)
 }
 
 model GrantIn {
   id               String       @id @default(uuid())
-  researchWorkId   String       @unique
-  researchWork     ResearchWork @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
+  name              String
+  teacherId        String
+  teacher          Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   projectCode      String?
   projectPI        String?
   projectCoPI      String?
@@ -263,12 +234,11 @@ model GrantIn {
   remainingAmount  Float?
   publication      String?
   publicationDetails String?
+  isPublic      Boolean      @default(false)
 }
 
 model FDP {
   id               String       @id @default(uuid())
-  researchWorkId   String       @unique
-  researchWork     ResearchWork @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
   name             String
   organizedBy      String?
   duration         String?
@@ -276,18 +246,22 @@ model FDP {
   endDate          DateTime?    @db.Date
   topic            String?
   remarks          String?
+  teacherId        String
+  teacher          Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  isPublic      Boolean      @default(false)
 }
 
 model Certification {
   id               String       @id @default(uuid())
-  researchWorkId   String       @unique
-  researchWork     ResearchWork @relation(fields: [researchWorkId], references: [id], onDelete: Cascade)
   name             String
   certificationName String
   offeredBy        String?
   completedAt      DateTime?    @db.Date
   link             String?
   remarks          String?
+  teacherId        String
+  teacher          Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  isPublic      Boolean      @default(false)
 }
 
 // =======================================================
@@ -300,7 +274,7 @@ model Achievement {
   description String?
   imageUrl    String
   uploadedAt  DateTime @default(now())
-  isPublished Boolean  @default(false)
+  isPublic Boolean  @default(false)
   link        String?
   uploadedById String
   uploadedBy  User     @relation(fields: [uploadedById], references: [id])
@@ -370,7 +344,7 @@ model UpcomingCompetition {
   organizer        String?
   prizeDetails     String?
   registrationLink String?
-  isPublished      Boolean   @default(false)
+  isPublic      Boolean   @default(false)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
