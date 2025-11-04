@@ -5,9 +5,6 @@ generator client {
 datasource db {
   provider = "cockroachdb"
   url      = env("DATABASE_URL")
-
-
-  
 }
 
 // =======================================================
@@ -29,20 +26,18 @@ enum PublicationStatus {
   PUBLISHED
 }
 
-
-
 enum ResearchPaperStatus {
   UPLOADED
   UNDER_REVIEW
   ACCEPTED
   REJECTED
 }
+
 enum ProjectType {
   PERSONAL
   COLLABORATIVE
   IN_IEDC
 }
-
 
 enum OngoingProjectStatus {
   ONGOING
@@ -56,63 +51,65 @@ enum OngoingProjectStatus {
 // =======================================================
 
 model User {
-  id              String       @id @default(uuid())
-  email           String?      @unique
-  password        String?
-  fullName        String
-  userType        UserType
-  image           String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  isVerified      Boolean      @default(false)
-  resetToken      String?      @unique
-  resetTokenExpiry DateTime?
+  id                      String           @id @default(uuid())
+  email                   String?          @unique
+  password                String?
+  fullName                String
+  userType                UserType
+  image                   String?
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+  isVerified              Boolean          @default(false)
+  resetToken              String?          @unique
+  resetTokenExpiry        DateTime?
   // Relations
-  studentProfile  Student?
-  teacherProfile  Teacher?
-  achievements    Achievement[]
-  advisedResearchPapers ResearchPaper[] @relation("ResearchPaperAdvisors")
-  memberOfResearchPapers ResearchPaper[] @relation("ResearchPaperMembers")
-  advisedOngoingProjects OngoingProject[] @relation("OngoingProjectAdvisors")
+  studentProfile          Student?
+  teacherProfile          Teacher?
+  achievements            Achievement[]
+  advisedResearchPapers   ResearchPaper[]  @relation("ResearchPaperAdvisors")
+  memberOfResearchPapers  ResearchPaper[]  @relation("ResearchPaperMembers")
+  advisedOngoingProjects  OngoingProject[] @relation("OngoingProjectAdvisors")
   memberOfOngoingProjects OngoingProject[] @relation("OngoingProjectMembers")
+  reviews                 Review[]         @relation("ReviewerReviews")
+  activityLogs            ActivityLog[]    @relation("UserActivityLogs")
   // NextAuth relations
-  accounts        Account[]
-  sessions        Session[]
+  accounts                Account[]
+  sessions                Session[]
 }
 
 model Student {
-  id             String      @id @default(uuid())
-  userId         String      @unique
-  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  section        String
-  year           Int
-  batch          String
-  department     String
-  rollNumber     String      @unique
+  id         String @id @default(uuid())
+  userId     String @unique
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  section    String
+  year       Int
+  batch      String
+  department String
+  rollNumber String @unique
 
   researchPapers  ResearchPaper[]
   ongoingProjects OngoingProject[]
 }
 
 model Teacher {
-  id              String      @id @default(uuid())
-  userId          String      @unique
-  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  affiliation     String
-  designation     String
+  id                String      @id @default(uuid())
+  userId            String      @unique
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  affiliation       String
+  designation       String
   subjectOfInterest String?
-  officialMail    String?
-  address         String?
-  copyrights      Copyright[] @relation("CopyrightInventors")
-  
-  patents         Patent[]
-  transactions    Transaction[]
-  conferences     Conference[]
-  journals        Journal[]
-  bookChapters    BookChapter[]
+  officialMail      String?
+  address           String?
+  copyrights        Copyright[] @relation("CopyrightInventors")
+  patentInventions  Patent[]    @relation("PatentInventors")
+
+  transactions   Transaction[]
+  conferences    Conference[]
+  journals       Journal[]
+  bookChapters   BookChapter[]
   grantIns       GrantIn[]
   fdps           FDP[]
-  certifications  Certification[]
+  certifications Certification[]
 }
 
 // =======================================================
@@ -123,145 +120,142 @@ model Teacher {
 // RESEARCH WORK TYPES
 // =======================================================
 model Copyright {
-  id               String       @id @default(uuid())
-  title            String
-  filedAt          DateTime?    @db.Date
-  submittedAt      DateTime?    @db.Date
-  publishedAt      DateTime?    @db.Date
-  grantedAt        DateTime?    @db.Date
-  inventors       Teacher[]     @relation("CopyrightInventors")
-  isPublic      Boolean      @default(false)
+  id          String    @id @default(uuid())
+  title       String
+  filedAt     DateTime? @db.Date
+  submittedAt DateTime? @db.Date
+  publishedAt DateTime? @db.Date
+  grantedAt   DateTime? @db.Date
+  inventors   Teacher[] @relation("CopyrightInventors")
+  isPublic    Boolean   @default(false)
 }
 
-
 model Patent {
-  id               String       @id @default(uuid())
-  title            String
-  inventors        String
-  applicant        String
-  applicationNo    String?
-  filedAt          DateTime?    @db.Date
-  submittedAt      DateTime?    @db.Date
-  publishedAt      DateTime?    @db.Date
-  publicationLink  String?
-  grantedAt        DateTime?    @db.Date
-  patentLink       String?
-  country          String?
-  teacherId        String
-  teacher          Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  isPublic      Boolean      @default(false)
+  id              String    @id @default(uuid())
+  title           String
+  inventors       Teacher[] @relation("PatentInventors")
+  applicant       String
+  applicationNo   String?
+  filedAt         DateTime? @db.Date
+  submittedAt     DateTime? @db.Date
+  publishedAt     DateTime? @db.Date
+  publicationLink String?
+  grantedAt       DateTime? @db.Date
+  patentLink      String?
+  country         String?
+  isPublic        Boolean   @default(false)
 }
 
 model Transaction {
-  id               String          @id @default(uuid())
-  transactionName  String
-  typeOfTransaction String?
-  indexOfTransaction String?
-  impactFactor     Float?
-  impactFactorDate DateTime?       @db.Date
-  publisher        String?
-  status           PublicationStatus
-  statusDate       DateTime        @db.Date
-  paperLinkDOI     String?
-  registrationFees Float?
+  id                  String            @id @default(uuid())
+  transactionName     String
+  typeOfTransaction   String?
+  indexOfTransaction  String?
+  impactFactor        Float?
+  impactFactorDate    DateTime?         @db.Date
+  publisher           String?
+  status              PublicationStatus
+  statusDate          DateTime          @db.Date
+  paperLinkDOI        String?
+  registrationFees    Float?
   reimbursementStatus String?
-  teacherId        String
-  teacher          Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  isPublic      Boolean      @default(false)
+  teacherId           String
+  teacher             Teacher           @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  isPublic            Boolean           @default(false)
 }
 
 model Conference {
-  id               String          @id @default(uuid())
-  mode             String? // Online / Offline
-  conferenceName   String
-  typeOfConference String?
-  indexOfConference String?
-  publisher        String?
-  status           PublicationStatus
-  statusDate       DateTime        @db.Date
-  paperLinkDOI     String?
-  registrationFees Float?
+  id                  String            @id @default(uuid())
+  mode                String? // Online / Offline
+  conferenceName      String
+  typeOfConference    String?
+  indexOfConference   String?
+  publisher           String?
+  status              PublicationStatus
+  statusDate          DateTime          @db.Date
+  paperLinkDOI        String?
+  registrationFees    Float?
   reimbursementStatus String?
-  teacherId        String
-  teacher          Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  isPublic      Boolean      @default(false)
+  teacherId           String
+  teacher             Teacher           @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  isPublic            Boolean           @default(false)
 }
 
 model Journal {
-  id               String          @id @default(uuid())
-  journalName      String
-  typeOfJournal    String?
-  indexOfJournal   String?
-  impactFactor     Float?
-  impactFactorDate DateTime?       @db.Date
-  publisher        String?
-  status           PublicationStatus
-  statusDate       DateTime        @db.Date
-  paperLinkDOI     String?
-  registrationFees Float?
+  id                  String            @id @default(uuid())
+  journalName         String
+  typeOfJournal       String?
+  indexOfJournal      String?
+  impactFactor        Float?
+  impactFactorDate    DateTime?         @db.Date
+  publisher           String?
+  status              PublicationStatus
+  statusDate          DateTime          @db.Date
+  paperLinkDOI        String?
+  registrationFees    Float?
   reimbursementStatus String?
-  teacherId        String
-  teacher          Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  isPublic      Boolean      @default(false)
+  teacherId           String
+  teacher             Teacher           @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  isPublic            Boolean           @default(false)
 }
 
 model BookChapter {
-  id               String          @id @default(uuid())
-  status           PublicationStatus
-  name            String
-  registrationFees Float?
+  id                  String            @id @default(uuid())
+  status              PublicationStatus
+  name                String
+  registrationFees    Float?
   reimbursementStatus String?
-  isbnIssn         String?
-  teacherId        String
-  teacher          Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  isPublic      Boolean      @default(false)
+  isbnIssn            String?
+  teacherId           String
+  teacher             Teacher           @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  isPublic            Boolean           @default(false)
 }
 
 model GrantIn {
-  id               String       @id @default(uuid())
-  name              String
-  teacherId        String
-  teacher          Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  projectCode      String?
-  projectPI        String?
-  projectCoPI      String?
-  status           String?
-  appliedAt        DateTime?    @db.Date
-  grantedAt        DateTime?    @db.Date
-  durationMonths   Int?
-  grantAmount      Float?
-  utilizedAmount   Float?
-  remainingAmount  Float?
-  publication      String?
+  id                 String    @id @default(uuid())
+  name               String
+  teacherId          String
+  teacher            Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  projectCode        String?
+  projectPI          String?
+  projectCoPI        String?
+  status             String?
+  appliedAt          DateTime? @db.Date
+  grantedAt          DateTime? @db.Date
+  durationMonths     Int?
+  grantAmount        Float?
+  utilizedAmount     Float?
+  remainingAmount    Float?
+  publication        String?
   publicationDetails String?
-  isPublic      Boolean      @default(false)
+  isPublic           Boolean   @default(false)
 }
 
 model FDP {
-  id               String       @id @default(uuid())
-  name             String
-  organizedBy      String?
-  duration         String?
-  startDate        DateTime?    @db.Date
-  endDate          DateTime?    @db.Date
-  topic            String?
-  remarks          String?
-  teacherId        String
-  teacher          Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  isPublic      Boolean      @default(false)
+  id          String    @id @default(uuid())
+  name        String
+  organizedBy String?
+  duration    String?
+  startDate   DateTime? @db.Date
+  endDate     DateTime? @db.Date
+  topic       String?
+  remarks     String?
+  teacherId   String
+  teacher     Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  isPublic    Boolean   @default(false)
 }
 
 model Certification {
-  id               String       @id @default(uuid())
-  name             String
+  id                String    @id @default(uuid())
+  name              String
   certificationName String
-  offeredBy        String?
-  completedAt      DateTime?    @db.Date
-  link             String?
-  remarks          String?
-  teacherId        String
-  teacher          Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  isPublic      Boolean      @default(false)
+  offeredBy         String?
+  completedAt       DateTime? @db.Date
+  link              String?
+  remarks           String?
+  teacherId         String
+  teacher           Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  isPublic          Boolean   @default(false)
 }
 
 // =======================================================
@@ -269,15 +263,15 @@ model Certification {
 // =======================================================
 
 model Achievement {
-  id          String   @id @default(uuid())
-  title       String
-  description String?
-  imageUrl    String
-  uploadedAt  DateTime @default(now())
-  isPublic Boolean  @default(false)
-  link        String?
+  id           String   @id @default(uuid())
+  title        String
+  description  String?
+  imageUrl     String
+  uploadedAt   DateTime @default(now())
+  isPublic     Boolean  @default(false)
+  link         String?
   uploadedById String
-  uploadedBy  User     @relation(fields: [uploadedById], references: [id])
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
 }
 
 // =======================================================
@@ -285,39 +279,39 @@ model Achievement {
 // =======================================================
 
 model ResearchPaper {
-  id              String             @id @default(uuid())
+  id              String              @id @default(uuid())
   studentId       String
-  student         Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student         Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
   title           String
   abstract        String?
   image           String?
   fileUrl         String?
   status          ResearchPaperStatus @default(UPLOADED)
-  createdAt       DateTime           @default(now()) 
-  updatedAt       DateTime           @updatedAt
-  projectType     ProjectType @default(PERSONAL)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  projectType     ProjectType         @default(PERSONAL)
   keywords        String[]
-  facultyAdvisors User[] @relation("ResearchPaperAdvisors")
-  members         User[] @relation("ResearchPaperMembers")
+  facultyAdvisors User[]              @relation("ResearchPaperAdvisors")
+  members         User[]              @relation("ResearchPaperMembers")
 }
 
 model OngoingProject {
-  id              String        @id @default(uuid())
-  studentId       String
-  student         Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  title           String
-  abstract        String?
-  image           String?
-  filepath        String?
-  status          OngoingProjectStatus @default(ONGOING)
-  startDate       DateTime?    @db.Date
-  endDate         DateTime?    @db.Date
-  createdAt       DateTime      @default(now()) 
-  updatedAt       DateTime      @updatedAt
+  id        String               @id @default(uuid())
+  studentId String
+  student   Student              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  title     String
+  abstract  String?
+  image     String?
+  filepath  String?
+  status    OngoingProjectStatus @default(ONGOING)
+  startDate DateTime?            @db.Date
+  endDate   DateTime?            @db.Date
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
 
   keywords        String[]
-  facultyAdvisors User[] @relation("OngoingProjectAdvisors")
-  members         User[] @relation("OngoingProjectMembers")
+  facultyAdvisors User[]   @relation("OngoingProjectAdvisors")
+  members         User[]   @relation("OngoingProjectMembers")
 }
 
 // =======================================================
@@ -344,11 +338,55 @@ model UpcomingCompetition {
   organizer        String?
   prizeDetails     String?
   registrationLink String?
-  isPublic      Boolean   @default(false)
+  isPublic         Boolean   @default(false)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
   @@index([startDate])
+}
+
+// =======================================================
+// REVIEW & ACTIVITY TRACKING
+// =======================================================
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ReviewableType {
+  RESEARCH_PAPER
+  ONGOING_PROJECT
+}
+
+model Review {
+  id             String         @id @default(uuid())
+  reviewableType ReviewableType
+  reviewableId   String
+  reviewerId     String
+  reviewer       User           @relation("ReviewerReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+  status         ReviewStatus   @default(PENDING)
+  comments       String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([reviewableId, reviewableType])
+  @@index([reviewerId])
+}
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation("UserActivityLogs", fields: [userId], references: [id], onDelete: Cascade)
+  action      String
+  entityType  String?
+  entityId    String?
+  description String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 // =======================================================

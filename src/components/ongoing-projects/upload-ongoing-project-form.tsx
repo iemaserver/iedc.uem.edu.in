@@ -15,7 +15,7 @@ import { OngoingProjectStatus } from "@prisma/client";
 import { Loader2, Upload, X, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
-import { MultiSelect } from "../ui/multi-select";
+import { MultiSelect } from "../ui/multi-select-new";
 import { FileUpload } from "../ui/file-upload";
 import { uploadFile } from "@/lib/appwrite";
 
@@ -105,7 +105,7 @@ export function UploadOngoingProjectForm({
 
   const fetchFacultyMembers = async () => {
     try {
-      const response = await axios.get("/api/general/faculty");
+      const response = await axios.get("/api/general/users", { params: { userType: "TEACHER" } });
       setFacultyMembers(response.data.data || []);
     } catch (error) {
       console.error("Error fetching faculty members:", error);
@@ -115,7 +115,7 @@ export function UploadOngoingProjectForm({
 
   const fetchStudents = async () => {
     try {
-      const response = await axios.get("/api/general/students");
+      const response = await axios.get("/api/general/users", { params: { userType: "STUDENT" } });
       setStudents(response.data.data || []);
     } catch (error) {
       console.error("Error fetching students:", error);

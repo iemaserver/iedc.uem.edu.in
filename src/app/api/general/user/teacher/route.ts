@@ -8,6 +8,7 @@ const getTeachersQuerySchema = z.object({
   limit: z.string().transform(Number).default("10").optional(),
   affiliation: z.string().optional(),
   designation: z.string().optional(),
+  email: z.string().email().optional()
 });
 
 export async function GET(request: NextRequest) {
@@ -19,11 +20,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Invalid query parameters", errors: parsedQuery.error.format() }, { status: 400 });
     }
 
-    const { page = 1, limit = 10, affiliation, designation } = parsedQuery.data;
+    const { page = 1, limit = 10, affiliation, designation,email } = parsedQuery.data;
 
     const whereClause: any = {};
     if (affiliation) whereClause.affiliation = affiliation;
     if (designation) whereClause.designation = designation;
+    if (email) whereClause.email = email;
 
     const teachers = await prisma.teacher.findMany({
       skip: (page - 1) * limit,

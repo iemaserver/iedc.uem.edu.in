@@ -40,13 +40,20 @@ export async function GET(request: NextRequest) {
     const status = url.searchParams.get("status") as ResearchPaperStatus;
     const projectType = url.searchParams.get("projectType") as ProjectType;
 
-    // Build where clause - ONLY show papers where this teacher is a faculty advisor
+    // Build where clause - Show papers where this teacher is a faculty advisor OR papers needing review
     const whereClause: any = {
-      facultyAdvisors: {
-        some: {
-          id: teacher.id, // Only papers where this teacher is a faculty advisor
+      OR: [
+        {
+          facultyAdvisors: {
+            some: {
+              id: user.id, // Papers where teacher is faculty advisor
+            },
+          },
         },
-      },
+        {
+          status: ResearchPaperStatus.UPLOADED, // Papers needing review
+        },
+      ],
     };
     
     if (title) whereClause.title = { contains: title, mode: 'insensitive' };

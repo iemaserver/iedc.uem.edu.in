@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from 'zod';
 import prisma from "@/lib/prisma";
 import { OngoingProjectStatus } from "@prisma/client";
+import { getAuthenticatedUser } from "@/utils/apiAuth";
 
 // =======================================================
 // ZOD SCHEMAS FOR VALIDATION
@@ -11,8 +12,7 @@ const getOngoingProjectsQuerySchema = z.object({
   page: z.string().transform(Number).optional(),
   limit: z.string().transform(Number).optional(),
   title: z.string().optional(),
-  teacherId: z.string().min(1, "Teacher ID is required"), // Teacher user ID
-  userRole: z.string().min(1, "User role is required"), // Added for authorization
+  
   status: z.nativeEnum(OngoingProjectStatus).optional(),
 });
 
@@ -32,8 +32,13 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const { page = 1, limit = 10, title, teacherId, userRole, status } = parsedQuery.data;
-
+    const { page = 1, limit = 10, title, status } = parsedQuery.data;
+    const session  = await getAuthenticatedUser();
+    if (!session) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+    const userRole = session.userType;
+    const teacherId = session.teacherProfile?.id;
     // Verify this is a teacher route and user has permission
     if (userRole !== "TEACHER") {
       return NextResponse.json({
@@ -43,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     // Verify the teacher exists and belongs to the requesting user
     const teacher = await prisma.teacher.findUnique({
-      where: { userId: teacherId },
+      where: { id: teacherId },
       select: { id: true }
     });
 

@@ -22,6 +22,13 @@ import {
   IconSettings,
   IconMessage,
   IconLogout,
+  IconBuildingBank,
+  IconSchool,
+  IconPresentation,
+  IconCoins,
+  IconLicense,
+  IconCertificate,
+  IconGavel,
 } from "@tabler/icons-react";
 
 import {
@@ -142,31 +149,60 @@ export const DashboardItems: DashboardGroup[] = [
     access: ["TEACHER", "ADMIN"],
     items: [
       {
-        title: "Copyright Management",
-        url: "/dashboard/teacher/copyright",
-        icon: IconCoin,
-      },
-      {
-        title: "Patent Management",
-        url: "/dashboard/teacher/patent",
-        icon: BookImage,
-      },
-      {
-        title: "Advised Papers",
-        url: "/dashboard/teacher/papers",
+        title: "Research Papers",
+        url: "/dashboard/teacher/research-paper",
         icon: IconPaperclip,
       },
       {
-        title: "Advised Projects",
-        url: "/dashboard/teacher/projects",
+        title: "Ongoing Projects",
+        url: "/dashboard/teacher/ongoing-projects",
         icon: IconFiles,
       },
       {
-        title: "Upload Research Work",
-        url: "/dashboard/teacher/research/upload",
-        icon: IconFileUpload,
+        title: "Journals",
+        url: "/dashboard/teacher/journal",
+        icon: IconFileText,
       },
-    
+      {
+        title: "Book Chapters",
+        url: "/dashboard/teacher/book-chapter",
+        icon: IconBook2,
+      },
+      {
+        title: "Conferences",
+        url: "/dashboard/teacher/conference",
+        icon: IconPresentation,
+      },
+      {
+        title: "Patents",
+        url: "/dashboard/teacher/patent",
+        icon: IconLicense,
+      },
+      {
+        title: "Copyrights",
+        url: "/dashboard/teacher/copyright",
+        icon: IconGavel,
+      },
+      {
+        title: "Certifications",
+        url: "/dashboard/teacher/certifications",
+        icon: IconCertificate,
+      },
+      {
+        title: "FDPs",
+        url: "/dashboard/teacher/fdps",
+        icon: IconSchool,
+      },
+      {
+        title: "Grants",
+        url: "/dashboard/teacher/grants",
+        icon: IconBuildingBank,
+      },
+      {
+        title: "Transactions",
+        url: "/dashboard/teacher/transaction",
+        icon: IconCoins,
+      },
     ],
   },
 

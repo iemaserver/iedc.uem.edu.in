@@ -26,439 +26,314 @@ import {
   MoreHorizontal,
   ChevronDown,
   ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  Calendar as CalendarIcon,
   X,
+  Users,
+  FileText,
+  Calendar,
+  Eye,
+  EyeOff,
+  Download,
+  ExternalLink,
+  TrendingUp,
+  BarChart3,
+  PieChart,
+  Activity,
 } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Calendar } from '@/components/ui/calendar';
-import { useForm } from 'react-hook-form';
+import { Input } from '@/components/ui/input';
 import toast from 'react-hot-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { 
+  DropdownMenu, 
+  DropdownMenuCheckboxItem, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import axios from 'axios';
-import { Copyright, Patent } from '@prisma/client';
+import { Patent } from '@prisma/client';
+import  AddPatentDrawer  from '../_components/patentAddForm';
+import EditPatentDialog from '../_components/patentEditDialog';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  PieChart as RechartsPieChart,
+  Cell,
+  LineChart,
+  Line,
+  Area,
+  AreaChart,
+  Pie
+} from 'recharts';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
 
-
-interface CopyrightFormData {
-  title: string;
-  inventors: string;
-  isPublic: boolean;
+interface PatentWithInventors extends Patent {
+  inventors: {
+    user: {
+      id: string;
+      fullName: string;
+      email: string;
+    };
+  }[];
 }
 
-interface DateRangeFilter {
-  from?: Date;
-  to?: Date;
+interface PatentStats {
+  total: number;
+  public: number;
+  private: number;
+  filed: number;
+  granted: number;
+  pending: number;
+  monthlyData: { month: string; count: number }[];
+  statusData: { status: string; count: number; color: string }[];
+  countryData: { country: string; count: number }[];
 }
 
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
-
-// Date Range Picker Component
-interface DateRangePickerProps {
-  from?: Date;
-  to?: Date;
-  onSelect: (from?: Date, to?: Date) => void;
-  placeholder?: string;
-  className?: string;
-}
-
-function DateRangePicker({ from, to, onSelect, placeholder = "Pick a date range", className }: DateRangePickerProps) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  const displayText = from || to 
-    ? `${from ? format(from, 'MMM dd, yyyy') : 'Start'} - ${to ? format(to, 'MMM dd, yyyy') : 'End'}`
-    : placeholder;
-
-  return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={`w-full justify-start text-left font-normal h-8 text-xs ${
-            !from && !to ? 'text-gray-500' : ''
-          } ${className}`}
-        >
-          <CalendarIcon className="mr-2 h-3 w-3" />
-          {displayText}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <div className="p-3">
-          <div className="space-y-2">
-            <div className="text-sm font-medium">Select Date Range</div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs">From</Label>
-                <Calendar
-                  mode="single"
-                  required={true}
-                  selected={from}
-                  onSelect={(date: Date) => onSelect(date, to)}
-                  disabled={(date: Date) => to ? date > to : false}
-                  className="rounded-md border"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">To</Label>
-                <Calendar
-                  mode="single"
-                  selected={to}
-                  required={true}
-                  onSelect={(date: Date) => onSelect(from, date)}
-                  disabled={(date: Date) => from ? date < from : false}
-                  className="rounded-md border"
-                />
-              </div>
-            </div>
-            <div className="flex justify-between pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  onSelect(undefined, undefined);
-                  setIsOpen(false);
-                }}
-              >
-                Clear
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => setIsOpen(false)}
-              >
-                Apply
-              </Button>
-            </div>
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-// Date Picker Component for Forms
-interface DatePickerProps {
-  date?: Date;
-  onSelect: (date?: Date) => void;
-  placeholder?: string;
-  className?: string;
-}
-
-function DatePicker({ date, onSelect, placeholder = "Pick a date", className }: DatePickerProps) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={`w-full justify-start text-left font-normal ${
-            !date ? 'text-gray-500' : ''
-          } ${className}`}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? format(date, 'PPP') : placeholder}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode="single"
-          selected={date}
-         required 
-captionLayout="dropdown"
-          onSelect={(selectedDate: Date) => {
-            onSelect(selectedDate);
-            setIsOpen(false);
-          }}
-        />
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-export default function CopyrightManagement() {
-  const [data, setData] = useState<Copyright[]>([]);
+export default function PatentManagement() {
+  const [data, setData] = useState<PatentWithInventors[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
-  const [editingCopyright, setEditingCopyright] = useState<Copyright | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [dateFilters, setDateFilters] = useState<{
-    filedAt: DateRangeFilter;
-    submittedAt: DateRangeFilter;
-    grantedAt: DateRangeFilter;
-    publishedAt: DateRangeFilter;
-  }>({
-    filedAt: {},
-    submittedAt: {},
-    grantedAt: {},
-    publishedAt: {},
+  const [stats, setStats] = useState<PatentStats>({
+    total: 0,
+    public: 0,
+    private: 0,
+    filed: 0,
+    granted: 0,
+    pending: 0,
+    monthlyData: [],
+    statusData: [],
+    countryData: []
   });
-  
-  // Form date states
-  const [formDates, setFormDates] = useState({
-    filedAt: undefined as Date | undefined,
-    submittedAt: undefined as Date | undefined,
-    grantedAt: undefined as Date | undefined,
-    publishedAt: undefined as Date | undefined,
-  });
-  
   // Table state
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [globalFilter, setGlobalFilter] = useState('');
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
   });
 
-  // Form for add/edit
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { errors, isSubmitting }
-  } = useForm<CopyrightFormData>({
-    defaultValues: {
-      title: '',
-      inventors: '',
-      isPublic: false,
-    },
-  });
+  // Dialog states
+  const [isAddDrawerOpen, setIsAddDrawerOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedPatentId, setSelectedPatentId] = useState<string>('');
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
-  // Custom filter function for date ranges
-  const dateRangeFilter = (row: any, columnId: string, filterValue: DateRangeFilter) => {
-    if (!filterValue.from && !filterValue.to) return true;
-    
-    const cellValue = row.getValue(columnId);
-    if (!cellValue) return false;
-    
-    const cellDate = new Date(cellValue);
-    
-    if (filterValue.from && filterValue.to) {
-      return cellDate >= filterValue.from && cellDate <= filterValue.to;
-    } else if (filterValue.from) {
-      return cellDate >= filterValue.from;
-    } else if (filterValue.to) {
-      return cellDate <= filterValue.to;
-    }
-    
-    return true;
-  };
-
-  // Custom global filter that only searches title, inventors
-  const globalFilterFn = (row: any, columnId: string, filterValue: string) => {
-    const searchableColumns = ['title', 'inventors'];
-    if (!filterValue) return true;
-    
-    const searchValue = filterValue.toLowerCase();
-    return searchableColumns.some(column => {
-      const cellValue = row.getValue(column);
-      return cellValue && cellValue.toString().toLowerCase().includes(searchValue);
-    });
-  };
-
-  // Apply date filters
-  useEffect(() => {
-    const filters: { id: string; value: DateRangeFilter }[] = [];
-    Object.entries(dateFilters).forEach(([key, value]) => {
-      if (value.from || value.to) {
-        filters.push({
-          id: key,
-          value: value
-        });
-      }
-    });
-    setColumnFilters(filters);
-  }, [dateFilters]);
-
-  // Your original loadData function
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      // Using your original axios call
-      const response = await fetch('/api/teacher/patent');
-      const result = await response.json();
-      const patent = result.data;
-      setData(patent);
-      toast.success('Data loaded successfully');
-    } catch (error) {
-      toast.error('Failed to load patent');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  // Table columns
-  const columns = useMemo<ColumnDef<Patent>[]>(() => [
+  // Define columns
+  const columns = useMemo<ColumnDef<PatentWithInventors>[]>(() => [
     {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "title",
-    header: "Title",
-    cell: ({ row }) => (
-      <div className="text-xs">
-        {row.original.title.length > 20
-          ? `${row.original.title.slice(0, 20)}...`
-          : row.original.title}
-      </div>
-    ),
-  },
-  {
-    accessorKey: "inventors",
-    header: "Inventors",
-    cell: ({ row }) => <div className="text-xs">{row.original.inventors}</div>,
-  },
-  {
-    accessorKey: "applicant",
-    header: "Applicant",
-    cell: ({ row }) => <div className="text-xs">{row.original.applicant}</div>,
-  },
-  {
-    accessorKey: "applicationNo",
-    header: "Application No",
-    cell: ({ row }) => <div className="text-xs">{row.original.applicationNo || "N/A"}</div>,
-  },
-  {
-    accessorKey: "country",
-    header: "Country",
-    cell: ({ row }) => <div className="text-xs">{row.original.country || "N/A"}</div>,
-  },
-  {
-    accessorKey: "filedAt",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Filed At
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => {
-      const filedAt = row.original.filedAt
-        ? new Date(row.original.filedAt).toLocaleDateString()
-        : "N/A";
-      return <div className="text-right">{filedAt}</div>;
-    },
-    filterFn: dateRangeFilter,
-  },
-  {
-    accessorKey: "submittedAt",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Submitted At
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => {
-      const submittedAt = row.original.submittedAt
-        ? new Date(row.original.submittedAt).toLocaleDateString()
-        : "N/A";
-      return <div className="text-right">{submittedAt}</div>;
-    },
-    filterFn: dateRangeFilter,
-  },
-  {
-    accessorKey: "publishedAt",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Published At
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => {
-      const publishedAt = row.original.publishedAt
-        ? new Date(row.original.publishedAt).toLocaleDateString()
-        : "N/A";
-      return <div className="text-right">{publishedAt}</div>;
-    },
-    filterFn: dateRangeFilter,
-  },
-  {
-    accessorKey: "grantedAt",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Granted At
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => {
-      const grantedAt = row.original.grantedAt
-        ? new Date(row.original.grantedAt).toLocaleDateString()
-        : "N/A";
-      return <div className="text-right">{grantedAt}</div>;
-    },
-    filterFn: dateRangeFilter,
-  },
-  {
-    accessorKey: "isPublic",
-    header: () => <div className="text-right">Accessibility</div>,
-    cell: ({ row }) =>
-      row.original.isPublic ? (
-        <Badge variant="outline" className="text-right">
-          Public
-        </Badge>
-      ) : (
-        <Badge variant="destructive" className="text-right">
-          Private
-        </Badge>
+      id: 'select',
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected()}
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
       ),
-    filterFn: "equals",
-  },
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: 'title',
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          className="h-auto p-0 font-medium"
+        >
+          Title
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <div className="font-medium text-sm">{row.getValue('title')}</div>
+          <div className="flex items-center gap-2">
+            {row.original.applicationNo && (
+              <Badge variant="outline" className="text-xs">
+                {row.original.applicationNo}
+              </Badge>
+            )}
+            {row.original.isPublic ? (
+              <Badge variant="default" className="text-xs bg-green-500">
+                <Eye className="h-3 w-3 mr-1" />
+                Public
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="text-xs">
+                <EyeOff className="h-3 w-3 mr-1" />
+                Private
+              </Badge>
+            )}
+          </div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'inventors',
+      header: 'Inventors',
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          {row.original.inventors.slice(0, 2).map((inventor, index) => (
+            <div key={index} className="text-sm">
+              {inventor.user.fullName}
+            </div>
+          ))}
+          {row.original.inventors.length > 2 && (
+            <Badge variant="outline" className="text-xs">
+              +{row.original.inventors.length - 2} more
+            </Badge>
+          )}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'applicant',
+      header: 'Applicant',
+      cell: ({ row }) => (
+        <div className="text-sm max-w-32 truncate" title={row.getValue('applicant')}>
+          {row.getValue('applicant')}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'country',
+      header: 'Country',
+      cell: ({ row }) => (
+        <div className="text-sm">
+          {row.getValue('country') || 'Not specified'}
+        </div>
+      ),
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      cell: ({ row }) => {
+        const patent = row.original;
+        let status = 'Filed';
+        let color = 'bg-blue-500';
+        
+        if (patent.grantedAt) {
+          status = 'Granted';
+          color = 'bg-green-500';
+        } else if (patent.publishedAt) {
+          status = 'Published';
+          color = 'bg-purple-500';
+        } else if (patent.submittedAt) {
+          status = 'Submitted';
+          color = 'bg-orange-500';
+        }
+        
+        return (
+          <Badge className={`text-white ${color}`}>
+            {status}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: 'filedAt',
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          className="h-auto p-0 font-medium"
+        >
+          Filed Date
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => {
+        const date = row.getValue('filedAt') as Date;
+        return date ? format(new Date(date), 'MMM dd, yyyy') : 'Not filed';
+      },
+    },
+    {
+      id: 'actions',
+      enableHiding: false,
+      cell: ({ row }) => {
+        const patent = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedPatentId(patent.id);
+                  setIsEditDialogOpen(true);
+                }}
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+              {patent.publicationLink && (
+                <DropdownMenuItem asChild>
+                  <a href={patent.publicationLink} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    View Publication
+                  </a>
+                </DropdownMenuItem>
+              )}
+              {patent.patentLink && (
+                <DropdownMenuItem asChild>
+                  <a href={patent.patentLink} target="_blank" rel="noopener noreferrer">
+                    <FileText className="mr-2 h-4 w-4" />
+                    View Patent
+                  </a>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedPatentId(patent.id);
+                  setIsDeleteDialogOpen(true);
+                }}
+                className="text-red-600"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
   ], []);
 
-
-  // Table instance
+  // Create table instance
   const table = useReactTable({
     data,
     columns,
@@ -471,8 +346,7 @@ export default function CopyrightManagement() {
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
     onPaginationChange: setPagination,
-    onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: globalFilterFn,
+    globalFilterFn: 'includesString',
     state: {
       sorting,
       columnFilters,
@@ -481,834 +355,806 @@ export default function CopyrightManagement() {
       pagination,
       globalFilter,
     },
+    onGlobalFilterChange: setGlobalFilter,
   });
 
-  // Handlers
-  const handleAdd = () => {
-    reset({
-      title: '',
-      inventors: '',
-      isPublic: false,
-    });
-    setFormDates({
-      filedAt: undefined,
-      submittedAt: undefined,
-      grantedAt: undefined,
-      publishedAt: undefined,
-    });
-    setIsAddDialogOpen(true);
-  };
-
-  const handleEdit = (copyright: Copyright) => {
-    setEditingCopyright(copyright);
-    setValue('title', copyright.title);
-    setValue('inventors', copyright.inventors);
-    setValue('isPublic', copyright.isPublic);
-    
-    setFormDates({
-      filedAt: copyright.filedAt ? new Date(copyright.filedAt) : undefined,
-      submittedAt: copyright.submittedAt ? new Date(copyright.submittedAt) : undefined,
-      grantedAt: copyright.grantedAt ? new Date(copyright.grantedAt) : undefined,
-      publishedAt: copyright.publishedAt ? new Date(copyright.publishedAt) : undefined,
-    });
-    
-    setIsEditDialogOpen(true);
-  };
-
-  const handleDelete = (id: string) => {
-    setDeletingId(id);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const handleBulkDelete = () => {
-    if (Object.keys(rowSelection).length === 0) {
-      toast.error('Please select rows to delete');
-      return;
-    }
-    setIsBulkDeleteDialogOpen(true);
-  };
-
-  const onSubmitAdd = async (formData: CopyrightFormData) => {
+  // Fetch data
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      const payload = {
-        ...formData,
-        filedAt: formDates.filedAt || null,
-        submittedAt: formDates.submittedAt || null,
-        grantedAt: formDates.grantedAt || null,
-        publishedAt: formDates.publishedAt || null,
-      };
-
-      const response = await axios.post('/api/teacher/patent', payload);
-
-      if (response.status !== 201) throw new Error('Failed to create copyright');
-
-      const result = response.data;
-      setData(prev => [...prev, result.data]);
-      setIsAddDialogOpen(false);
-      reset();
-      setFormDates({
-        filedAt: undefined,
-        submittedAt: undefined,
-        grantedAt: undefined,
-        publishedAt: undefined,
+      const response = await axios.get('/api/teacher/patent?teacherId=me');
+      const patents = response.data.data || [];
+      setData(patents);
+      console.log("patent is", patents)
+      
+      // Calculate stats
+      const total = patents.length;
+      const publicCount = patents.filter((p: PatentWithInventors) => p.isPublic).length;
+      const privateCount = total - publicCount;
+      const filed = patents.filter((p: PatentWithInventors) => p.filedAt).length;
+      const granted = patents.filter((p: PatentWithInventors) => p.grantedAt).length;
+      const pending = total - granted;
+      
+      // Monthly data for charts
+      const monthlyData = generateMonthlyData(patents);
+      const statusData = generateStatusData(patents);
+      const countryData = generateCountryData(patents);
+      
+      setStats({
+        total,
+        public: publicCount,
+        private: privateCount,
+        filed,
+        granted,
+        pending,
+        monthlyData,
+        statusData,
+        countryData
       });
-      toast.success('Copyright added successfully');
+      
     } catch (error) {
-      toast.error('Failed to add copyright');
+      console.error('Error fetching patents:', error);
+      toast.error('Failed to fetch patents');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const onSubmitEdit = async (formData: CopyrightFormData) => {
-    if (!editingCopyright) return;
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Helper functions for chart data
+  const generateMonthlyData = (patents: PatentWithInventors[]) => {
+    const monthCounts: { [key: string]: number } = {};
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     
-    try {
-      const payload = {
-
-        ...formData,
-        id: editingCopyright.id,
-        filedAt: formDates.filedAt || null,
-        submittedAt: formDates.submittedAt || null,
-        grantedAt: formDates.grantedAt || null,
-        publishedAt: formDates.publishedAt || null,
-      };
-
-      const response = await axios.put(`/api/teacher/patent`, payload);
-
-      if (response.status !== 200) throw new Error('Failed to update copyright');
-
-      const result = response.data;
-      setData(prev => prev.map(item => 
-        item.id === editingCopyright.id ? result.data : item
-      ));
-      setIsEditDialogOpen(false);
-      setEditingCopyright(null);
-      reset();
-      setFormDates({
-        filedAt: undefined,
-        submittedAt: undefined,
-        grantedAt: undefined,
-        publishedAt: undefined,
-      });
-      toast.success('Copyright updated successfully');
-    } catch (error) {
-      toast.error('Failed to update copyright');
-    }
-  };
-
-  const confirmDelete = async () => {
-    if (!deletingId) return;
+    months.forEach(month => monthCounts[month] = 0);
     
-    try {
-      const response = await axios.delete(`/api/teacher/patent`, {
-        data: { ids: [deletingId] }
-      });
-
-      if (response.status !== 200) throw new Error('Failed to delete copyright');
-
-      setData(prev => prev.filter(item => item.id !== deletingId));
-      setIsDeleteDialogOpen(false);
-      setDeletingId(null);
-      toast.success('Copyright deleted successfully');
-    } catch (error) {
-      toast.error('Failed to delete copyright');
-    }
-  };
-
-  const handleConfirmBulkDelete = async () => {
-  
-    try {
-      // Get selected row indices from TanStack Table's rowSelection state
-      const selectedRowIds = Object.keys(rowSelection);
-      // Map indices to actual copyright IDs
-      const selectedIds = selectedRowIds.map(rowId => {
-      const row = table.getRow(rowId);
-      return row?.original?.id;
-      }).filter(Boolean);
-
-      if (selectedIds.length === 0) {
-      toast.error('No rows selected for deletion');
-      return;
+    patents.forEach(patent => {
+      if (patent.filedAt) {
+        const month = format(new Date(patent.filedAt), 'MMM');
+        monthCounts[month]++;
       }
+    });
+    
+    return months.map(month => ({
+      month,
+      count: monthCounts[month]
+    }));
+  };
 
-      const response = await axios.delete('/api/teacher/patent', {
-      data: { ids: selectedIds }
+  const generateStatusData = (patents: PatentWithInventors[]) => {
+    const statusCounts = {
+      filed: 0,
+      submitted: 0,
+      published: 0,
+      granted: 0
+    };
+    
+    patents.forEach(patent => {
+      if (patent.grantedAt) statusCounts.granted++;
+      else if (patent.publishedAt) statusCounts.published++;
+      else if (patent.submittedAt) statusCounts.submitted++;
+      else statusCounts.filed++;
+    });
+    
+    return [
+      { status: 'Filed', count: statusCounts.filed, color: '#0088FE' },
+      { status: 'Submitted', count: statusCounts.submitted, color: '#00C49F' },
+      { status: 'Published', count: statusCounts.published, color: '#FFBB28' },
+      { status: 'Granted', count: statusCounts.granted, color: '#FF8042' },
+    ];
+  };
+
+  const generateCountryData = (patents: PatentWithInventors[]) => {
+    const countryCounts: { [key: string]: number } = {};
+    
+    patents.forEach(patent => {
+      const country = patent.country || 'Not specified';
+      countryCounts[country] = (countryCounts[country] || 0) + 1;
+    });
+    
+    return Object.entries(countryCounts)
+      .map(([country, count]) => ({ country, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  };
+
+  // Delete handler
+  const handleDelete = async () => {
+    try {
+      await axios.delete('/api/teacher/patent', {
+        data: { ids: [selectedPatentId] }
       });
-
-      if (response.status !== 200) throw new Error('Failed to delete patent');
-
-      setData(prev => prev.filter(item => !selectedIds.includes(item.id)));
-      setRowSelection({});
-      setIsBulkDeleteDialogOpen(false);
-      toast.success(`${selectedIds.length} patent deleted successfully`);
+      
+      setData(prev => prev.filter(item => item.id !== selectedPatentId));
+      toast.success('Patent deleted successfully');
+      setIsDeleteDialogOpen(false);
+      setSelectedPatentId('');
     } catch (error) {
+      console.error('Delete failed:', error);
       toast.error('Failed to delete patent');
     }
   };
 
-  const clearDateFilter = (dateType: keyof typeof dateFilters) => {
-    setDateFilters(prev => ({
-      ...prev,
-      [dateType]: {}
-    }));
+  // Bulk delete handler
+  const handleBulkDelete = async () => {
+    const selectedIds = Object.keys(rowSelection);
+    if (selectedIds.length === 0) return;
+    
+    try {
+      await axios.delete('/api/teacher/patent', {
+        data: { ids: selectedIds }
+      });
+      
+      setData(prev => prev.filter(item => !selectedIds.includes(item.id)));
+      toast.success(`${selectedIds.length} patents deleted successfully`);
+      setRowSelection({});
+    } catch (error) {
+      console.error('Bulk delete failed:', error);
+      toast.error('Failed to delete patents');
+    }
   };
 
-  const setDateFilter = (dateType: keyof typeof dateFilters, from?: Date, to?: Date) => {
-    setDateFilters(prev => ({
-      ...prev,
-      [dateType]: { from, to }
-    }));
-  };
-
-  const hasActiveFilters = Object.values(dateFilters).some(filter => filter.from || filter.to);
-
-  const clearAllFilters = () => {
-    setDateFilters({
-      filedAt: {},
-      submittedAt: {},
-      grantedAt: {},
-      publishedAt: {},
+  const filteredData = useMemo(() => {
+    return data.filter(patent => {
+      const matchesCountry = selectedCountry === 'all' || patent.country === selectedCountry;
+      const matchesStatus = selectedStatus === 'all' || 
+        (selectedStatus === 'granted' && patent.grantedAt) ||
+        (selectedStatus === 'published' && patent.publishedAt && !patent.grantedAt) ||
+        (selectedStatus === 'submitted' && patent.submittedAt && !patent.publishedAt) ||
+        (selectedStatus === 'filed' && !patent.submittedAt);
+      
+      return matchesCountry && matchesStatus;
     });
-    setGlobalFilter('');
-  };
+  }, [data, selectedCountry, selectedStatus]);
+
+  const uniqueCountries = useMemo(() => {
+    const countries = data.map(p => p.country).filter((country): country is string => Boolean(country));
+    return Array.from(new Set(countries));
+  }, [data]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="flex items-center space-x-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <p>Loading patents...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 p-6 max-w-full">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold">Copyright Management</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* Toolbar */}
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-1 items-center space-x-2">
-              <div className="relative max-w-sm">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search title, inventors..."
-                  value={globalFilter ?? ''}
-                  onChange={(event) => setGlobalFilter(event.target.value)}
-                  className="pl-8"
-                />
-              </div>
-              {globalFilter && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setGlobalFilter('')}
-                  className="h-8 px-2"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
+    <div className="space-y-6 p-6 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between"
+      >
+        <div className="flex flex-col space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Patent Management
+          </h1>
+          <p className="text-slate-600">
+            Manage your intellectual property portfolio with advanced analytics
+          </p>
+        </div>
+        <Button
+          onClick={() => setIsAddDrawerOpen(true)}
+          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-6 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Patent
+        </Button>
+      </motion.div>
+
+      {/* Stats Cards */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+      >
+        <Card className="group relative overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-105">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800" />
+          <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-xl transform translate-x-8 -translate-y-8" />
+          <CardHeader className="relative z-10 flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-white/90">Total Patents</CardTitle>
+            <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+              <FileText className="h-4 w-4 text-white" />
             </div>
-
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={loadData}
-                disabled={loading}
-                className="h-8"
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              </Button>
-
-              <Button
-                variant={showFilters ? "default" : "outline"}
-                size="sm"
-                onClick={() => setShowFilters(!showFilters)}
-                className="h-8"
-              >
-                <Filter className="h-4 w-4" />
-                Date Filters
-                {hasActiveFilters && <div className="ml-1 h-2 w-2 rounded-full bg-blue-500" />}
-              </Button>
-
-              {hasActiveFilters && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearAllFilters}
-                  className="h-8 text-gray-500 hover:text-gray-700"
-                >
-                  Clear All
-                </Button>
-              )}
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8">
-                    Columns
-                    <ChevronDown className="ml-1 h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  {table
-                    .getAllColumns()
-                    .filter((column) => column.getCanHide())
-                    .map((column) => (
-                      <DropdownMenuCheckboxItem
-                        key={column.id}
-                        className="capitalize"
-                        checked={column.getIsVisible()}
-                        onCheckedChange={(value) => column.toggleVisibility(!!value)}
-                      >
-                        {column.id}
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {Object.keys(rowSelection).length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleBulkDelete}
-                  className="h-8 text-red-600 hover:text-red-700"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete Selected ({Object.keys(rowSelection).length})
-                </Button>
-              )}
-
-              <Button onClick={handleAdd} size="sm" className="h-8">
-                <Plus className="h-4 w-4" />
-                Add Copyright
-              </Button>
+          </CardHeader>
+          <CardContent className="relative z-10">
+            <div className="text-3xl font-bold text-white">{stats.total}</div>
+            <div className="flex-1 bg-white/20 rounded-full h-2.5 overflow-hidden mt-3">
+              <div 
+                className="bg-white h-2.5 rounded-full transition-all duration-1000 ease-out"
+                style={{ width: `${stats.total > 0 ? Math.min((stats.public / stats.total) * 100, 100) : 0}%` }}
+              />
             </div>
-          </div>
+            <p className="text-xs text-white/80 mt-2">
+              {stats.public} public, {stats.private} private
+            </p>
+          </CardContent>
+        </Card>
 
-          {showFilters && (
-            <div className="p-4 border rounded-lg bg-gray-50 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium">Date Range Filters</h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowFilters(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Filed Date Filter */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium">Filed Date</Label>
-                    {(dateFilters.filedAt.from || dateFilters.filedAt.to) && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => clearDateFilter('filedAt')}
-                        className="h-4 w-4 p-0 text-gray-500 hover:text-gray-700"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                  <DateRangePicker
-                    from={dateFilters.filedAt.from}
-                    to={dateFilters.filedAt.to}
-                    onSelect={(from, to) => setDateFilter('filedAt', from, to)}
-                    placeholder="Select filed date range"
-                  />
-                </div>
-
-                {/* Submit Date Filter */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium">Submit Date</Label>
-                    {(dateFilters.submittedAt.from || dateFilters.submittedAt.to) && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => clearDateFilter('submittedAt')}
-                        className="h-4 w-4 p-0 text-gray-500 hover:text-gray-700"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                  <DateRangePicker
-                    from={dateFilters.submittedAt.from}
-                    to={dateFilters.submittedAt.to}
-                    onSelect={(from, to) => setDateFilter('submittedAt', from, to)}
-                    placeholder="Select submit date range"
-                  />
-                </div>
-
-                {/* Grant Date Filter */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium">Grant Date</Label>
-                    {(dateFilters.grantedAt.from || dateFilters.grantedAt.to) && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => clearDateFilter('grantedAt')}
-                        className="h-4 w-4 p-0 text-gray-500 hover:text-gray-700"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                  <DateRangePicker
-                    from={dateFilters.grantedAt.from}
-                    to={dateFilters.grantedAt.to}
-                    onSelect={(from, to) => setDateFilter('grantedAt', from, to)}
-                    placeholder="Select grant date range"
-                  />
-                </div>
-
-                {/* Publish Date Filter */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium">Publish Date</Label>
-                    {(dateFilters.publishedAt.from || dateFilters.publishedAt.to) && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => clearDateFilter('publishedAt')}
-                        className="h-4 w-4 p-0 text-gray-500 hover:text-gray-700"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                  <DateRangePicker
-                    from={dateFilters.publishedAt.from}
-                    to={dateFilters.publishedAt.to}
-                    onSelect={(from, to) => setDateFilter('publishedAt', from, to)}
-                    placeholder="Select publish date range"
-                  />
-                </div>
-              </div>
+        <Card className="group relative overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-105">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-800" />
+          <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-xl transform translate-x-8 -translate-y-8" />
+          <CardHeader className="relative z-10 flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-white/90">Granted Patents</CardTitle>
+            <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+              <TrendingUp className="h-4 w-4 text-white" />
             </div>
-          )}
-          
-          {/* Table */}
-          <div className="rounded-md border mt-4">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(header.column.columnDef.header, header.getContext())}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={columns.length} className="h-24 text-center">
-                      <div className="flex items-center justify-center space-x-2">
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                        <span>Loading...</span>
+          </CardHeader>
+          <CardContent className="relative z-10">
+            <div className="text-3xl font-bold text-white">{stats.granted}</div>
+            <div className="flex-1 bg-white/20 rounded-full h-2.5 overflow-hidden mt-3">
+              <div 
+                className="bg-white h-2.5 rounded-full transition-all duration-1000 ease-out"
+                style={{ width: `${stats.total > 0 ? (stats.granted / stats.total) * 100 : 0}%` }}
+              />
+            </div>
+            <p className="text-xs text-white/80 mt-2">
+              {stats.total > 0 ? Math.round((stats.granted / stats.total) * 100) : 0}% of total
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="group relative overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-105">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-600 via-orange-700 to-orange-800" />
+          <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-xl transform translate-x-8 -translate-y-8" />
+          <CardHeader className="relative z-10 flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-white/90">Pending Patents</CardTitle>
+            <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+              <Activity className="h-4 w-4 text-white" />
+            </div>
+          </CardHeader>
+          <CardContent className="relative z-10">
+            <div className="text-3xl font-bold text-white">{stats.pending}</div>
+            <div className="flex-1 bg-white/20 rounded-full h-2.5 overflow-hidden mt-3">
+              <div 
+                className="bg-white h-2.5 rounded-full transition-all duration-1000 ease-out"
+                style={{ width: `${stats.total > 0 ? (stats.pending / stats.total) * 100 : 0}%` }}
+              />
+            </div>
+            <p className="text-xs text-white/80 mt-2">
+              In various stages of approval
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="group relative overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-105">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-purple-700 to-purple-800" />
+          <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-xl transform translate-x-8 -translate-y-8" />
+          <CardHeader className="relative z-10 flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-white/90">Filed This Year</CardTitle>
+            <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+              <Calendar className="h-4 w-4 text-white" />
+            </div>
+          </CardHeader>
+          <CardContent className="relative z-10">
+            <div className="text-3xl font-bold text-white">{stats.filed}</div>
+            <div className="flex-1 bg-white/20 rounded-full h-2.5 overflow-hidden mt-3">
+              <div 
+                className="bg-white h-2.5 rounded-full transition-all duration-1000 ease-out"
+                style={{ width: `${stats.filed > 0 ? Math.min((stats.filed / 12) * 100, 100) : 0}%` }}
+              />
+            </div>
+            <p className="text-xs text-white/80 mt-2">
+              Active applications
+            </p>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Charts Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <Tabs defaultValue="overview" className="space-y-8">
+          <TabsList className="grid w-full grid-cols-3 lg:w-500px bg-white/80 backdrop-blur-md border border-slate-200/60 shadow-lg rounded-xl p-1">
+            <TabsTrigger 
+              value="overview" 
+              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300 rounded-lg"
+            >
+              <Eye className="h-4 w-4" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger 
+              value="analytics" 
+              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300 rounded-lg"
+            >
+              <BarChart3 className="h-4 w-4" />
+              Analytics
+            </TabsTrigger>
+            <TabsTrigger 
+              value="table" 
+              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300 rounded-lg"
+            >
+              <FileText className="h-4 w-4" />
+              Patent List
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <BarChart3 className="h-5 w-5" />
+                    <span>Monthly Patent Filings</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={stats.monthlyData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip />
+                      <Area
+                        type="monotone"
+                        dataKey="count"
+                        stroke="#8884d8"
+                        fill="url(#colorGradient)"
+                        strokeWidth={2}
+                      />
+                      <defs>
+                        <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="#8884d8" stopOpacity={0.1}/>
+                        </linearGradient>
+                      </defs>
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <PieChart className="h-5 w-5" />
+                    <span>Patent Status Distribution</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RechartsPieChart>
+                      <Pie
+                        dataKey="count"
+                        data={stats.statusData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ status, count, percent }) => 
+                          `${status}: ${count} (${percent ? (percent * 100).toFixed(0) : 0}%)`
+                        }
+                        outerRadius={80}
+                        fill="#8884d8"
+                      >
+                        {stats.statusData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Patent Progress Timeline</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={400}>
+                    <LineChart data={stats.monthlyData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip />
+                      <Line
+                        type="monotone"
+                        dataKey="count"
+                        stroke="#8884d8"
+                        strokeWidth={3}
+                        dot={{ fill: '#8884d8', strokeWidth: 2, r: 6 }}
+                        activeDot={{ r: 8 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Countries</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {stats.countryData.map((item, index) => (
+                      <div key={item.country} className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium">{item.country}</span>
+                          <span className="text-muted-foreground">{item.count}</span>
+                        </div>
+                        <Progress 
+                          value={(item.count / Math.max(...stats.countryData.map(d => d.count))) * 100} 
+                          className="h-2"
+                        />
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ) : table.getRowModel().rows.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={columns.length} className="h-24 text-center">
-                      No results.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Pagination */}
-          <div className="flex items-center justify-between space-x-2 py-4">
-            <div className="text-sm text-gray-500">
-              {Object.keys(rowSelection).length} of {table.getFilteredRowModel().rows.length} row(s) selected.
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-            <div className="flex items-center space-x-2">
-              <p className="text-sm font-medium">
-                Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
-              </p>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => table.previousPage()}
-                  disabled={!table.getCanPreviousPage()}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => table.nextPage()}
-                  disabled={!table.getCanNextPage()}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </TabsContent>
 
-      {/* Add Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Add New Copyright</DialogTitle>
-            <DialogDescription>
-              Create a new copyright entry with all required information.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmitAdd)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <Label htmlFor="title">Title</Label>
-                <Input
-                  id="title"
-                  {...register('title', { required: 'Title is required' })}
-                  placeholder="Enter copyright title"
-                />
-                {errors.title && (
-                  <p className="text-sm text-red-600 mt-1">{errors.title?.message}</p>
-                )}
-              </div>
-              
-              <div className="col-span-2">
-                <Label htmlFor="inventors">Inventors</Label>
-                <Input
-                  id="inventors"
-                  {...register('inventors', { required: 'Inventors are required' })}
-                  placeholder="Enter inventor names"
-                />
-                {errors.inventors && (
-                  <p className="text-sm text-red-600 mt-1">{errors.inventors?.message}</p>
-                )}
-              </div>
+          <TabsContent value="table">
+            {/* Enhanced Search and Filters */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="space-y-6"
+            >
+              <Card className="shadow-sm border-0 bg-gradient-to-r from-white to-slate-50">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-xl font-semibold bg-gradient-to-r from-slate-700 to-slate-900 bg-clip-text text-transparent">Patent Records</CardTitle>
+                    <Button
+                      onClick={() => setIsAddDrawerOpen(true)}
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-6 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Patent
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6 max-h-[80vh] overflow-auto">
+                  {/* Enhanced Toolbar */}
+                  <div className="flex flex-col space-y-4">
+                    {/* Search and Filters Row */}
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+                      <div className="flex flex-1 items-center space-x-2 max-w-md">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Search patents..."
+                            value={globalFilter ?? ""}
+                            onChange={(event) => setGlobalFilter(event.target.value)}
+                            className="pl-9 h-10 border-2 focus:border-blue-500 transition-colors"
+                          />
+                        </div>
+                        {globalFilter && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setGlobalFilter("")}
+                            className="h-10 px-3"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
 
-              <div>
-                <Label htmlFor="filedAt">Filed Date</Label>
-                <Input
-                  type='date'
-                  value={formDates.filedAt ? formDates.filedAt.toISOString().split('T')[0] : ''}
-                  onChange={e => {
-                    const value = e.target.value;
-                    setFormDates(prev => ({
-                      ...prev,
-                      filedAt: value ? new Date(value) : undefined
-                    }));
-                  }}
-                  placeholder="Select filed date" 
-                />
-              </div>
+                      <div className="flex items-center space-x-2">
+                        {/* Status Filter */}
+                        <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                          <SelectTrigger className="w-40 h-10">
+                            <SelectValue placeholder="Filter by status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Status</SelectItem>
+                            <SelectItem value="filed">Filed</SelectItem>
+                            <SelectItem value="submitted">Submitted</SelectItem>
+                            <SelectItem value="published">Published</SelectItem>
+                            <SelectItem value="granted">Granted</SelectItem>
+                          </SelectContent>
+                        </Select>
 
-              <div>
-                <Label htmlFor="submittedAt">Submit Date</Label>
-                <Input
-                  id="submittedAt"
-                  type='date'
-                  value={formDates.submittedAt ? formDates.submittedAt.toISOString().split('T')[0] : ''}
-                  onChange={e => {
-                    const value = e.target.value;
-                    setFormDates(prev => ({
-                      ...prev,
-                      submittedAt: value ? new Date(value) : undefined
-                    }));
-                  }}
-                  placeholder="Select submit date"
-                />
-              </div>
+                        {/* Country Filter */}
+                        <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                          <SelectTrigger className="w-40 h-10">
+                            <SelectValue placeholder="Filter by country" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Countries</SelectItem>
+                            {uniqueCountries.map((country) => (
+                              <SelectItem key={country} value={country}>
+                                {country}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
 
-              <div>
-                <Label htmlFor="grantedAt">Grant Date</Label>
-                <Input
-                  id="grantedAt"
-                  type='date'
-                  value={formDates.grantedAt ? formDates.grantedAt.toISOString().split('T')[0] : ''}
-                  onChange={e => {
-                    const value = e.target.value;
-                    setFormDates(prev => ({
-                      ...prev,
-                      grantedAt: value ? new Date(value) : undefined
-                    }));
-                  }}
-                  placeholder="Select grant date"
-                />
-              </div>
+                        {/* Page Size */}
+                        <Select
+                          value={table.getState().pagination.pageSize.toString()}
+                          onValueChange={(value) => table.setPageSize(Number(value))}
+                        >
+                          <SelectTrigger className="w-20 h-10">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="5">5</SelectItem>
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="20">20</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                          </SelectContent>
+                        </Select>
 
-              <div>
-                <Label htmlFor="publishedAt">Publish Date</Label>
-                <Input
-                  id="publishedAt"
-                  type='date'
-                  value={formDates.publishedAt ? formDates.publishedAt.toISOString().split('T')[0] : ''}
-                  onChange={e => {
-                    const value = e.target.value;
-                    setFormDates(prev => ({
-                      ...prev,
-                      publishedAt: value ? new Date(value) : undefined
-                    }));
-                  }}
-                  placeholder="Select publish date"
-                />
-              </div>
+                        {/* Column Visibility */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="h-10">
+                              <Filter className="h-4 w-4 mr-2" />
+                              Columns
+                              <ChevronDown className="ml-2 h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {table
+                              .getAllColumns()
+                              .filter((column) => column.getCanHide())
+                              .map((column) => (
+                                <DropdownMenuCheckboxItem
+                                  key={column.id}
+                                  className="capitalize"
+                                  checked={column.getIsVisible()}
+                                  onCheckedChange={(value) =>
+                                    column.toggleVisibility(!!value)
+                                  }
+                                >
+                                  {column.id}
+                                </DropdownMenuCheckboxItem>
+                              ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
 
-              <div className="col-span-2 flex items-center space-x-2">
-                <Switch
-                  id="isPublic"
-                  checked={watch('isPublic')}
-                  onCheckedChange={(checked) => setValue('isPublic', checked)}
-                />
-                <Label htmlFor="isPublic">Make Public</Label>
-              </div>
-            </div>
+                        {/* Refresh Button */}
+                        <Button 
+                          onClick={fetchData} 
+                          variant="outline" 
+                          className="h-10 px-3"
+                          title="Refresh data"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsAddDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Adding...' : 'Add Copyright'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+                    {/* Bulk Actions */}
+                    {Object.keys(rowSelection).length > 0 && (
+                      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex items-center justify-center w-8 h-8 bg-blue-500 text-white rounded-full text-sm font-bold">
+                            {Object.keys(rowSelection).length}
+                          </div>
+                          <span className="text-sm font-medium text-slate-700">
+                            {Object.keys(rowSelection).length} of {table.getFilteredRowModel().rows.length} patent{Object.keys(rowSelection).length !== 1 ? 's' : ''} selected
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={handleBulkDelete}
+                            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Selected
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setRowSelection({})}
+                          >
+                            Clear Selection
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+             
 
-      {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Edit Copyright</DialogTitle>
-            <DialogDescription>
-              Update the copyright information.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmitEdit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <Label htmlFor="edit-title">Title</Label>
-                <Input
-                  id="edit-title"
-                  {...register('title', { required: 'Title is required' })}
-                  placeholder="Enter copyright title"
-                />
-                {errors.title && (
-                  <p className="text-sm text-red-600 mt-1">{errors.title?.message}</p>
-                )}
-              </div>
+                  {/* Enhanced Table */}
+                  <div className="rounded-xl border border-slate-200/60 shadow-xl bg-white/90 backdrop-blur-md overflow-hidden">
+                    <Table className="min-w-full">
+                      <TableHeader>
+                        {table.getHeaderGroups().map((headerGroup) => (
+                          <TableRow key={headerGroup.id} className="border-b border-slate-200 bg-gradient-to-r from-slate-50 via-slate-100 to-slate-50 hover:from-slate-100 hover:to-slate-100 transition-all duration-300">
+                            {headerGroup.headers.map((header) => (
+                              <TableHead 
+                                key={header.id} 
+                                className="font-bold text-slate-700 py-4 px-6 first:rounded-tl-xl last:rounded-tr-xl whitespace-nowrap"
+                                style={{ width: header.getSize() }}
+                              >
+                                {header.isPlaceholder
+                                  ? null
+                                  : flexRender(
+                                      header.column.columnDef.header,
+                                      header.getContext()
+                                    )}
+                              </TableHead>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </TableHeader>
+                      <TableBody>
+                        <AnimatePresence>
+                          {table.getRowModel().rows?.length ? (
+                            table.getRowModel().rows.map((row, index) => (
+                              <motion.tr
+                                key={row.id}
+                                data-state={row.getIsSelected() && "selected"}
+                                className={`group relative transition-all duration-300 border-b hover:bg-muted/50 data-[state=selected]:bg-muted ${
+                                  index % 2 === 0 
+                                    ? 'bg-white hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-purple-50/50' 
+                                    : 'bg-slate-50/30 hover:bg-gradient-to-r hover:from-blue-50/70 hover:to-purple-50/70'
+                                } hover:shadow-md hover:scale-[1.01] border-b border-slate-100 border-l-0 hover:border-l-4 hover:border-l-blue-500`}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                
+                              >
+                                {row.getVisibleCells().map((cell) => (
+                                  <TableCell key={cell.id}>
+                                    {flexRender(
+                                      cell.column.columnDef.cell,
+                                      cell.getContext()
+                                    )}
+                                  </TableCell>
+                                ))}
+                              </motion.tr>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell
+                                colSpan={columns.length}
+                                className="h-24 text-center"
+                              >
+                                <div className="flex flex-col items-center justify-center space-y-2">
+                                  <FileText className="h-8 w-8 text-muted-foreground" />
+                                  <p className="text-muted-foreground">No patents found</p>
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => setIsAddDrawerOpen(true)}
+                                  >
+                                    Add your first patent
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </AnimatePresence>
+                      </TableBody>
+                    </Table>
+                  </div>
 
-              <div className="col-span-2">
-                <Label htmlFor="edit-inventors">Inventors</Label>
-                <Input
-                  id="edit-inventors"
-                  {...register('inventors', { required: 'Inventors are required' })}
-                  placeholder="Enter inventor names"
-                />
-                <DatePicker
-                  date={formDates.grantedAt}
-                  onSelect={(date) => setFormDates(prev => ({ ...prev, grantedAt: date }))}
-                  placeholder="Select grant date"
-                />
-              </div>
+                  {/* Pagination */}
+                  <div className="flex items-center justify-between space-x-2 p-4">
+                    <div className="flex-1 text-sm text-muted-foreground">
+                      {table.getFilteredSelectedRowModel().rows.length} of{" "}
+                      {table.getFilteredRowModel().rows.length} row(s) selected.
+                    </div>
+                    <div className="flex items-center space-x-6 lg:space-x-8">
+                      <div className="flex items-center space-x-2">
+                        <p className="text-sm font-medium">Rows per page</p>
+                        <Select
+                          value={`${table.getState().pagination.pageSize}`}
+                          onValueChange={(value) => {
+                            table.setPageSize(Number(value));
+                          }}
+                        >
+                          <SelectTrigger className="h-8 w-[70px]">
+                            <SelectValue placeholder={table.getState().pagination.pageSize} />
+                          </SelectTrigger>
+                          <SelectContent side="top">
+                            {[10, 20, 30, 40, 50].map((pageSize) => (
+                              <SelectItem key={pageSize} value={`${pageSize}`}>
+                                {pageSize}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                        Page {table.getState().pagination.pageIndex + 1} of{" "}
+                        {table.getPageCount()}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          className="hidden h-8 w-8 p-0 lg:flex"
+                          onClick={() => table.setPageIndex(0)}
+                          disabled={!table.getCanPreviousPage()}
+                        >
+                          <span className="sr-only">Go to first page</span>
+                          <ChevronDown className="h-4 w-4 rotate-90" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="h-8 w-8 p-0"
+                          onClick={() => table.previousPage()}
+                          disabled={!table.getCanPreviousPage()}
+                        >
+                          <span className="sr-only">Go to previous page</span>
+                          <ChevronDown className="h-4 w-4 rotate-90" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="h-8 w-8 p-0"
+                          onClick={() => table.nextPage()}
+                          disabled={!table.getCanNextPage()}
+                        >
+                          <span className="sr-only">Go to next page</span>
+                          <ChevronDown className="h-4 w-4 -rotate-90" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="hidden h-8 w-8 p-0 lg:flex"
+                          onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+                          disabled={!table.getCanNextPage()}
+                        >
+                          <span className="sr-only">Go to last page</span>
+                          <ChevronDown className="h-4 w-4 -rotate-90" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </TabsContent>
+        </Tabs>
+      </motion.div>
 
-              <div>
-                <Label htmlFor="publishedAt">Publish Date</Label>
-                <DatePicker
-                  date={formDates.publishedAt}
-                  onSelect={(date) => setFormDates(prev => ({ ...prev, publishedAt: date }))}
-                  placeholder="Select publish date"
-                />
-              </div>
+      {/* Dialogs */}
+      <AddPatentDrawer
+        open={isAddDrawerOpen}
+        onClose={() => setIsAddDrawerOpen(false)}
+        setData={setData}
+      />
 
-              <div className="col-span-2 flex items-center space-x-2">
-                <Switch
-                  id="isPublic"
-                  checked={watch('isPublic')}
-                  onCheckedChange={(checked) => setValue('isPublic', checked)}
-                />
-                <Label htmlFor="isPublic">Make Public</Label>
-              </div>
-            </div>
+      <EditPatentDialog
+        isEditDialogOpen={isEditDialogOpen}
+        setIsEditDialogOpen={setIsEditDialogOpen}
+        patentId={selectedPatentId}
+        onUpdate={(updatedPatent) => {
+          setData(prev => prev.map(item => 
+            item.id === updatedPatent.id ? { ...item, ...updatedPatent } : item
+          ));
+        }}
+      />
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsAddDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Adding...' : 'Add Copyright'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Edit Copyright</DialogTitle>
-            <DialogDescription>
-              Update the copyright information.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmitEdit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <Label htmlFor="edit-title">Title</Label>
-                <Input
-                  id="edit-title"
-                  {...register('title', { required: 'Title is required' })}
-                  placeholder="Enter copyright title"
-                />
-                {errors.title && (
-                  <p className="text-sm text-red-600 mt-1">{errors.title?.message}</p>
-                )}
-              </div>
-              
-              <div className="col-span-2">
-                <Label htmlFor="edit-inventors">Inventors</Label>
-                <Input
-                  id="edit-inventors"
-                  {...register('inventors', { required: 'Inventors are required' })}
-                  placeholder="Enter inventor names"
-                />
-                {errors.inventors && (
-                  <p className="text-sm text-red-600 mt-1">{errors.inventors?.message}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="edit-filedAt">Filed Date</Label>
-                <DatePicker
-                  date={formDates.filedAt}
-                  onSelect={(date) => setFormDates(prev => ({ ...prev, filedAt: date }))}
-                  placeholder="Select filed date"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="edit-submittedAt">Submit Date</Label>
-                <DatePicker
-                  date={formDates.submittedAt}
-                  onSelect={(date) => setFormDates(prev => ({ ...prev, submittedAt: date }))}
-                  placeholder="Select submit date"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="edit-grantedAt">Grant Date</Label>
-                <DatePicker
-                  date={formDates.grantedAt}
-                  onSelect={(date) => setFormDates(prev => ({ ...prev, grantedAt: date }))}
-                  placeholder="Select grant date"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="edit-publishedAt">Publish Date</Label>
-                <DatePicker
-                  date={formDates.publishedAt}
-                  onSelect={(date) => setFormDates(prev => ({ ...prev, publishedAt: date }))}
-                  placeholder="Select publish date"
-                />
-              </div>
-
-              <div className="col-span-2 flex items-center space-x-2">
-                <Switch
-                  id="edit-isPublic"
-                  checked={watch('isPublic')}
-                  onCheckedChange={(checked) => setValue('isPublic', checked)}
-                />
-                <Label htmlFor="edit-isPublic">Make Public</Label>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsEditDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Updating...' : 'Update Copyright'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the copyright
-              and remove the data from the system.
+              This action cannot be undone. This will permanently delete the patent
+              from your records.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
+            <Button variant="destructive" onClick={handleDelete}>
               Delete
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Bulk Delete Confirmation Dialog */}
-      <AlertDialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Multiple patent</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete {Object.keys(rowSelection).length} selected patent? 
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <Button variant="outline" onClick={() => setIsBulkDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleConfirmBulkDelete}>
-              Delete Selected
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

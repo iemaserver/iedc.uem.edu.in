@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ProjectType, ResearchPaperStatus } from "@prisma/client";
 import toast from "react-hot-toast";
 import axios from "axios";
-import { MultiSelect } from "../ui/multi-select";
+import { MultiSelect } from "../ui/multi-select-new";
 import { FileUpload } from "../ui/file-upload";
 import { uploadFile } from "@/lib/appwrite";
 
@@ -101,8 +101,8 @@ export function UploadResearchPaperForm({
     const fetchUsersData = async () => {
       try {
         const [facultiesRes, studentsRes] = await Promise.all([
-          axios.get("/api/general/user", { params: { userType: "TEACHER" } }),
-          axios.get("/api/general/user", { params: { userType: "STUDENT" } })
+          axios.get("/api/general/users", { params: { userType: "TEACHER" } }),
+          axios.get("/api/general/users", { params: { userType: "STUDENT" } })
         ]);
 
         if (facultiesRes.data?.data) {

@@ -9,10 +9,10 @@ import { z } from "zod";
 const copyrightSchema = z.object({
   title: z.string().min(2).max(200),
   inventors: z.array(z.string().uuid()).optional(), // multiple teacher IDs
-  filedAt: z.coerce.date().optional(),
-  submittedAt: z.coerce.date().optional(),
-  publishedAt: z.coerce.date().optional(),
-  grantedAt: z.coerce.date().optional(),
+  filedAt: z.union([z.coerce.date(), z.null()]).optional(),
+  submittedAt: z.union([z.coerce.date(), z.null()]).optional(),
+  publishedAt: z.union([z.coerce.date(), z.null()]).optional(),
+  grantedAt: z.union([z.coerce.date(), z.null()]).optional(),
   isPublic: z.boolean().default(false),
 });
 
@@ -20,10 +20,10 @@ const updateCopyrightSchema = z.object({
   title: z.string().min(2).max(200).optional(),
   inventors: z.array(z.string().uuid()).optional(),
   isPublic: z.boolean().optional(),
-  filedAt: z.coerce.date().optional(),
-  submittedAt: z.coerce.date().optional(),
-  publishedAt: z.coerce.date().optional(),
-  grantedAt: z.coerce.date().optional(),
+  filedAt: z.union([z.coerce.date(), z.null()]).optional(),
+  submittedAt: z.union([z.coerce.date(), z.null()]).optional(),
+  publishedAt: z.union([z.coerce.date(), z.null()]).optional(),
+  grantedAt: z.union([z.coerce.date(), z.null()]).optional(),
 });
 
 // =======================
@@ -52,16 +52,38 @@ export async function POST(req: NextRequest) {
     // Validate request body
     const result = copyrightSchema.safeParse(body);
     if (!result.success) {
-      return NextResponse.json({ message: "Invalid request data", errors: result.error.errors }, { status: 400 });
+      return NextResponse.json({ 
+        success: false,
+        message: "Invalid request data", 
+        errors: result.error.errors 
+      }, { status: 400 });
     }
 
     const { inventors = [], ...copyrightData } = result.data;
 
+    // Validate that we have at least one inventor (including the submitter)
+    if (inventors.length === 0) {
+      return NextResponse.json({ 
+        success: false,
+        message: "At least one inventor must be specified" 
+      }, { status: 400 });
+    }
+
     // Map User IDs to Teacher IDs
     const teacherInventors = await prisma.teacher.findMany({
       where: { userId: { in: inventors } },
-      select: { id: true },
+      select: { id: true, userId: true },
     });
+
+    // Check if all specified inventors exist as teachers
+    if (teacherInventors.length !== inventors.length) {
+      const foundUserIds = teacherInventors.map(t => t.userId);
+      const missingUserIds = inventors.filter(id => !foundUserIds.includes(id));
+      return NextResponse.json({ 
+        success: false,
+        message: `Some inventors are not registered as teachers: ${missingUserIds.join(', ')}` 
+      }, { status: 400 });
+    }
 
     // Combine current teacher ID with inventor IDs, avoid duplicates
     const allInventorIds = Array.from(new Set([
@@ -77,13 +99,32 @@ export async function POST(req: NextRequest) {
           connect: allInventorIds.map((id) => ({ id })),
         },
       },
-      include: { inventors: true },
+      include: { 
+        inventors: {
+          include: {
+            user: { 
+              select: { 
+                id: true, 
+                fullName: true, 
+                email: true 
+              } 
+            },
+          },
+        },
+      },
     });
 
-    return NextResponse.json(newCopyright, { status: 201 });
+    return NextResponse.json({ 
+      success: true, 
+      message: "Copyright created successfully",
+      data: newCopyright 
+    }, { status: 201 });
   } catch (error) {
-    console.error("POST /api/copyright error:", error);
-    return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
+    console.error("POST /api/teacher/copyrights error:", error);
+    return NextResponse.json({ 
+      success: false, 
+      message: "Internal Server Error" 
+    }, { status: 500 });
   }
 }
 // =======================
@@ -192,12 +233,18 @@ export async function PUT(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const { id } = Object.fromEntries(searchParams);
-
+    console.log("Update request for ID:", id);
     if (!id) {
       return NextResponse.json(
         { message: "Copyright ID is required" },
         { status: 400 }
       );
+    }
+
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user || session.user.userType !== "TEACHER") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
@@ -211,19 +258,34 @@ export async function PUT(req: NextRequest) {
 
     const { inventors, ...rest } = result.data;
 
+    // If inventors array is provided, convert user IDs to teacher IDs
+    let inventorData = {};
+    if (inventors) {
+      const teacherInventors = await prisma.teacher.findMany({
+        where: { userId: { in: inventors } },
+        select: { id: true },
+      });
+
+      inventorData = {
+        inventors: {
+          set: teacherInventors.map((teacher) => ({ id: teacher.id })),
+        },
+      };
+    }
+
     const updatedCopyright = await prisma.copyright.update({
       where: { id },
       data: {
         ...rest,
-        ...(inventors
-          ? {
-              inventors: {
-                set: inventors.map((id) => ({ id })), // replace all inventors
-              },
-            }
-          : {}),
+        ...inventorData,
       },
-      include: { inventors: true },
+      include: {
+        inventors: {
+          include: {
+            user: { select: { id: true, fullName: true, email: true } },
+          },
+        },
+      },
     });
 
     return NextResponse.json(updatedCopyright, { status: 200 });
@@ -238,6 +300,12 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user || session.user.userType !== "TEACHER") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
     const { ids } = await request.json();
 
     console.log("Delete request for ID(s):", typeof ids);
@@ -281,6 +349,12 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user || session.user.userType !== "TEACHER") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     const result = patchInventorsSchema.safeParse(body);
     if (!result.success) {
@@ -292,19 +366,40 @@ export async function PATCH(req: NextRequest) {
 
     const { connect = [], disconnect = [] } = result.data;
 
+    // Convert user IDs to teacher IDs for both connect and disconnect
+    const connectTeachers = connect.length > 0 
+      ? await prisma.teacher.findMany({
+          where: { userId: { in: connect } },
+          select: { id: true },
+        })
+      : [];
+
+    const disconnectTeachers = disconnect.length > 0
+      ? await prisma.teacher.findMany({
+          where: { userId: { in: disconnect } },
+          select: { id: true },
+        })
+      : [];
+
     const updated = await prisma.copyright.update({
       where: { id },
       data: {
         inventors: {
-          ...(connect.length > 0
-            ? { connect: connect.map((id) => ({ id })) }
+          ...(connectTeachers.length > 0
+            ? { connect: connectTeachers.map((teacher) => ({ id: teacher.id })) }
             : {}),
-          ...(disconnect.length > 0
-            ? { disconnect: disconnect.map((id) => ({ id })) }
+          ...(disconnectTeachers.length > 0
+            ? { disconnect: disconnectTeachers.map((teacher) => ({ id: teacher.id })) }
             : {}),
         },
       },
-      include: { inventors: true },
+      include: {
+        inventors: {
+          include: {
+            user: { select: { id: true, fullName: true, email: true } },
+          },
+        },
+      },
     });
 
     return NextResponse.json(updated, { status: 200 });
