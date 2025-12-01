@@ -1,129 +1,119 @@
-// app/api/achievements/route.ts
-
-import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import prisma from "@/lib/prisma";
+import { z } from "zod";
+import { UserRole } from "@prisma/client";
 
-import { z } from 'zod';
-
-
-// Zod schema for creating an achievement
-const createAchievementSchema = z.object({
-  title: z.string().min(1, "Title is required"),
+const schema = z.object({
+  title: z.string().min(3),
   description: z.string().optional(),
-  imageUrl: z.string().url("Invalid image URL").optional(),
-  isPublished: z.boolean().default(false).optional(),
-  link: z.string().url("Invalid link URL").optional(),
-  uploadedById: z.string().min(1, "Uploaded by user ID is required"), // In a real app, this would come from auth context
+  category: z.string().optional(),
+  imageUrl: z.string().url().optional().or(z.literal("")),
+  link: z.string().url().optional().or(z.literal("")),
+  achievedAt: z.string().optional().transform(val => val ? new Date(val) : undefined),
+  isPublished: z.boolean().default(false),
 });
 
-export async function POST(request: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    const body = await request.json();
-    const parsedData = createAchievementSchema.safeParse(body);
+    const session = await getServerSession(authOptions);
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    if (!parsedData.success) {
-      return NextResponse.json({ 
-        message: "Invalid input", 
-        errors: parsedData.error.format() 
-      }, { status: 400 });
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
+    const category = searchParams.get("category");
+    const isPublished = searchParams.get("isPublished");
+
+    const where: any = {};
+
+    // Non-admins only see published achievements or their own
+    if (session.user.role !== UserRole.ADMIN) {
+      where.OR = [
+        { isPublished: true },
+        { uploadedById: session.user.id },
+      ];
     }
 
-    const newAchievement = await prisma.achievement.create({
-      data: parsedData.data,
+    if (category) {
+      where.category = category;
+    }
+
+    if (isPublished !== null && session.user.role === UserRole.ADMIN) {
+      where.isPublished = isPublished === "true";
+    }
+
+    const [achievements, total] = await Promise.all([
+      prisma.achievement.findMany({
+        where,
+        include: {
+          uploadedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              image: true,
+              role: true,
+            },
+          },
+        },
+        orderBy: [
+          { achievedAt: "desc" },
+          { uploadedAt: "desc" },
+        ],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.achievement.count({ where }),
+    ]);
+
+    return NextResponse.json({ 
+      data: achievements, 
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } 
     });
-
-    return NextResponse.json(newAchievement, { status: 201 });
-
   } catch (error) {
-    console.error("Error creating achievement:", error);
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }
 
-
-const getAchievementsQuerySchema = z.object({
-  page: z.string().transform(Number).default("1").optional(),
-  limit: z.string().transform(Number).default("10").optional(),
-  title: z.string().optional(),
-  isPublished: z.string().transform(val => val === 'true').optional(), // Converts 'true'/'false' string to boolean
-  uploadedById: z.string().optional(),
-});
-
-export async function GET(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const parsedQuery = getAchievementsQuerySchema.safeParse(Object.fromEntries(searchParams));
+    const session = await getServerSession(authOptions);
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    if (!parsedQuery.success) {
+    const body = await req.json();
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json({ 
-        message: "Invalid query parameters", 
-        errors: parsedQuery.error.format() 
+        error: "Validation failed", 
+        details: parsed.error.flatten().fieldErrors 
       }, { status: 400 });
     }
 
-    const { page = 1, limit = 10, title, isPublished, uploadedById } = parsedQuery.data;
-
-    const whereClause: any = {};
-    if (title) {
-      whereClause.title = {
-        contains: title,
-        mode: 'insensitive',
-      };
-    }
-    if (isPublished !== undefined) {
-      whereClause.isPublished = isPublished;
-    }
-    if (uploadedById) {
-      whereClause.uploadedById = uploadedById;
-    }
-
-    const achievements = await prisma.achievement.findMany({
-      skip: (page - 1) * limit,
-      take: limit,
-      where: whereClause,
-      orderBy: {
-        uploadedAt: 'desc', // Order by creation date descending
+    const achievement = await prisma.achievement.create({
+      data: {
+        ...parsed.data,
+        uploadedById: session.user.id,
       },
       include: {
-        uploadedBy: { select: { fullName: true, userType: true } }, // Include uploader's name and type
-      }
-    });
-
-    const totalAchievements = await prisma.achievement.count({ where: whereClause });
-
-    return NextResponse.json({
-      data: achievements,
-      meta: {
-        totalItems: totalAchievements,
-        currentPage: page,
-        itemsPerPage: limit,
-        totalPages: Math.ceil(totalAchievements / limit),
+        uploadedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            role: true,
+          },
+        },
       },
     });
 
+    return NextResponse.json({ 
+      message: "Achievement created successfully", 
+      data: achievement 
+    }, { status: 201 });
   } catch (error) {
-    console.error("Error fetching achievements:", error);
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
-}
-
-
-export async function DELETE(request: NextRequest) {
-    try {
-        const { ids } = await request.json();
-
-        if (!Array.isArray(ids) || ids.length === 0) {
-            return NextResponse.json({ message: "Invalid IDs" }, { status: 400 });
-        }
-
-        const deletedAchievements = await prisma.achievement.deleteMany({
-            where: { id: { in: ids } },
-        });
-
-        return NextResponse.json(deletedAchievements, { status: 200 });
-
-    } catch (error) {
-        console.error("Error deleting achievement:", error);
-        return NextResponse.json({ message: "Internal server error" }, { status: 500 });
-    }
 }

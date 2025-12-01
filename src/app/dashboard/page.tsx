@@ -1,32 +1,48 @@
-import React from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import DynamicDashboardOverview from './_dashboardElement/DynamicDashboardOverview';
-import DynamicProfilePage from './_dashboardElement/DynamicProfilePage';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
+import { Separator } from "@/components/ui/separator"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 
-// Force dynamic rendering
-export const dynamic = 'force-dynamic';
-
-const Dashboard = () => {
+export default function DashboardPage() {
   return (
-    <div className="container mx-auto p-4">
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="overview" className="space-y-4">
-          <DynamicDashboardOverview />
-        </TabsContent>
-        
-        <TabsContent value="profile" className="space-y-4">
-          <DynamicProfilePage />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
+    <>
+      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <SidebarTrigger className="-ml-1" />
+        <Separator orientation="vertical" className="mr-2 h-4" />
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbPage>Dashboard</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </header>
+      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <div className="py-4">
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard Overview</h1>
+          <p className="text-muted-foreground">Welcome to IEDC Portal Dashboard</p>
+        </div>
+        <div className="grid auto-rows-min gap-4 md:grid-cols-3">
+          <div className="bg-muted/50 aspect-video rounded-xl flex items-center justify-center">
+            <span className="text-muted-foreground">Statistics</span>
+          </div>
+          <div className="bg-muted/50 aspect-video rounded-xl flex items-center justify-center">
+            <span className="text-muted-foreground">Recent Activities</span>
+          </div>
+          <div className="bg-muted/50 aspect-video rounded-xl flex items-center justify-center">
+            <span className="text-muted-foreground">Quick Actions</span>
+          </div>
+        </div>
+        <div className="bg-muted/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min flex items-center justify-center">
+          <span className="text-muted-foreground">Main Content Area</span>
+        </div>
+      </div>
+    </>
+  )
 }
-
-export default Dashboard;
-
-

@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { createValidationError } from './errorHandler';
+
+const createValidationError = (message: string) => new Error(message);
 
 // Common validation schemas
 export const commonSchemas = {

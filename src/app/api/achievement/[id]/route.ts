@@ -1,88 +1,123 @@
-// app/api/achievements/[id]/route.ts
-
-import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import prisma from "@/lib/prisma";
+import { z } from "zod";
+import { UserRole } from "@prisma/client";
 
-import { z } from 'zod';
-
-
-// Zod schema for updating an achievement (all fields optional for partial updates)
-const updateAchievementSchema = z.object({
-  title: z.string().min(1, "Title cannot be empty").optional(),
+const updateSchema = z.object({
+  title: z.string().optional(),
   description: z.string().optional(),
-  imageUrl: z.string().url("Invalid image URL").optional(),
+  category: z.string().optional(),
+  imageUrl: z.string().optional(),
+  link: z.string().optional(),
+  achievedAt: z.string().optional().transform(val => val ? new Date(val) : undefined),
   isPublished: z.boolean().optional(),
-  link: z.string().url("Invalid link URL").optional(),
 });
 
-export async function GET(
-  request: NextRequest, 
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: NextRequest,  { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params;
+    const session = await getServerSession(authOptions);
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const {id} = await params;
     const achievement = await prisma.achievement.findUnique({
       where: { id: id },
       include: {
-        uploadedBy: { select: { fullName: true, userType: true } },
-      }
+        uploadedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            role: true,
+          },
+        },
+      },
     });
 
     if (!achievement) {
-      return NextResponse.json({ message: "Achievement not found" }, { status: 404 });
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    return NextResponse.json(achievement);
+    // Check if user can view unpublished achievement
+    if (!achievement.isPublished && 
+        session.user.role !== UserRole.ADMIN && 
+        achievement.uploadedById !== session.user.id) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
 
+    return NextResponse.json({ data: achievement });
   } catch (error) {
-    console.error("Error fetching achievement:", error);
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }
 
-export async function PUT(
-  request: NextRequest, 
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params;
-    const body = await request.json();
-    const parsedData = updateAchievementSchema.safeParse(body);
+    const session = await getServerSession(authOptions);
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const {id} = await params;
 
-    if (!parsedData.success) {
+    const achievement = await prisma.achievement.findUnique({ where: { id } });
+    if (!achievement) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    // Check ownership or admin
+    if (session.user.role !== UserRole.ADMIN && achievement.uploadedById !== session.user.id) {
+      return NextResponse.json({ error: "You can only edit your own achievements" }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const parsed = updateSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Validation failed" }, { status: 400 });
+    }
+
+    // Only admins can change isPublished status
+    if (parsed.data.isPublished !== undefined && session.user.role !== UserRole.ADMIN) {
       return NextResponse.json({ 
-        message: "Invalid input for update", 
-        errors: parsedData.error.format() 
-      }, { status: 400 });
+        error: "Only admins can publish/unpublish achievements" 
+      }, { status: 403 });
     }
 
-    const updatedAchievement = await prisma.achievement.update({
-      where: { id: id },
-      data: parsedData.data,
+    const updated = await prisma.achievement.update({
+      where: { id },
+      data: parsed.data,
+      include: {
+        uploadedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            role: true,
+          },
+        },
+      },
     });
 
-    return NextResponse.json(updatedAchievement);
-
+    return NextResponse.json({ message: "Updated", data: updated });
   } catch (error) {
-    console.error("Error updating achievement:", error);
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }
 
-export async function DELETE(
-  request: NextRequest, 
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params;
-    await prisma.achievement.delete({
-      where: { id: id },
-    });
+    const session = await getServerSession(authOptions);
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const {id} = await params;
 
-    return NextResponse.json({ message: "Achievement deleted successfully" }, { status: 204 });
+    const achievement = await prisma.achievement.findUnique({ where: { id } });
+    if (!achievement) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+    // Check ownership or admin
+    if (session.user.role !== UserRole.ADMIN && achievement.uploadedById !== session.user.id) {
+      return NextResponse.json({ error: "You can only delete your own achievements" }, { status: 403 });
+    }
+
+    await prisma.achievement.delete({ where: { id } });
+    return NextResponse.json({ message: "Deleted" });
   } catch (error) {
-    console.error("Error deleting achievement:", error);
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

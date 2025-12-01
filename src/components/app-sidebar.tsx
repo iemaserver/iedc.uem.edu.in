@@ -1,46 +1,83 @@
 "use client"
 
 import * as React from "react"
-
-
+import { useSession } from "next-auth/react"
+import { DashboardItems } from "@/types/Datatypes"
 import { NavMain } from "@/components/nav-main"
-
 import { NavUser } from "@/components/nav-user"
-
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
+import Image from "next/image"
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
 
-import { User } from "@prisma/client"
-import { TeamSwitcher } from "./team-switcher"
-import { useSession } from "next-auth/react"
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { data: session } = useSession()
+  const userRole = session?.user?.role || "STUDENT"
+  console.log("User Role in Sidebar:", userRole)
+  // Map TEACHER role to FACULTY for UI purposes
+  const displayRole = userRole === "TEACHER" ? "FACULTY" : userRole
 
+  // Filter dashboard items based on user role
+  const filteredItems = DashboardItems.map(section => {
+    // If section has access restrictions, check if user has access
+    if (section.access && !section.access.includes(displayRole as any)) {
+      return null
+    }
 
-export function AppSidebar({ userData,...props }: { userData: User } & React.ComponentProps<typeof Sidebar>,) {
-  if (!userData) {
-    return (
-      <div className="flex justify-center items-center h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
-        <p>Loading profile data...</p>
-      </div>
-    )
-  }
-  
- 
+    // Filter items within the section based on access
+    const filteredSectionItems = section.items?.filter((item: any) => {
+      if (item.access && !item.access.includes(displayRole as any)) {
+        return false
+      }
+      return true
+    })
+
+    return {
+      ...section,
+      items: filteredSectionItems
+    }
+  }).filter(Boolean) // Remove null sections
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher name={userData.name} profileImage={userData.profileImage||"/default-image.png"} userType={userData.userType} />
+          <SidebarMenu>
+      <SidebarMenuItem>
+            <SidebarMenuButton
+              size="lg"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+            >
+              
+              <Avatar className="h-8 w-8 rounded-lg">
+                <AvatarImage src={session?.user.image || "/default-image.png"} alt={session?.user.name || "profile"} />
+                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+              </Avatar>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium">{session?.user.name || "User"}</span>
+                <span className="truncate text-xs">IEDC, UEMK</span>
+              </div>
+              
+            </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain {...userData} />
-        
+        <NavMain items={filteredItems as any} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser name={userData.name} email={userData.email} profileImage={userData.profileImage||"/default-image.png"} />
+        <NavUser user={{
+          name: session?.user?.name || "User",
+          email: session?.user?.email || "user@example.com",
+          avatar: session?.user?.image || "/avatars/default.jpg",
+        }} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

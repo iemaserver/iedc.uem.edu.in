@@ -1,6 +1,8 @@
 "use client"
 
 import { ChevronRight, type LucideIcon } from "lucide-react"
+import Link from "next/link"
+
 import {
   Collapsible,
   CollapsibleContent,
@@ -17,37 +19,26 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
 
-import Link from "next/link"
-import { User } from "@prisma/client"
-import { DashboardItems } from "@/types/Datatypes"
-
-
-
-
-export function NavMain(
- 
-  user: User
-) {
-  const items = DashboardItems
-  const filteredItems = items.filter((item) => {
-    if (user.userType === "ADMIN") {
-      return true
-    }
-    if (user.userType === "FACULTY") {
-      return !item.access || item.access.includes("FACULTY")
-    }
-    if (user.userType === "STUDENT") {
-      return !item.access
-    }
-    return false
-  
-  })
-
+export function NavMain({
+  items,
+}: {
+  items: {
+    title: string
+    url: string
+    icon?: LucideIcon
+    isActive?: boolean
+    items?: {
+      title: string
+      url: string
+      icon?: LucideIcon
+    }[]
+  }[]
+}) {
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Platform</SidebarGroupLabel>
+      <SidebarGroupLabel>Navigation</SidebarGroupLabel>
       <SidebarMenu>
-        {filteredItems.map((item) => (
+        {items.map((item) => (
           <Collapsible
             key={item.title}
             asChild
@@ -64,23 +55,16 @@ export function NavMain(
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <SidebarMenuSub>
-                  {item.items?.map((subItem) => {
-                    // Check if subItem has access restrictions
-                    if ('access' in subItem && subItem.access && !subItem.access.includes(user.userType)) {
-                      return null;
-                    }
-                    
-                    return (
-                      <SidebarMenuSubItem key={subItem.title}>
-                        <SidebarMenuSubButton asChild>
-                          <Link href={`/${subItem.url}`}>
-                            {"icon" in subItem && subItem.icon && <subItem.icon />}
-                            <span>{subItem.title}</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    );
-                  })}
+                  {item.items?.map((subItem) => (
+                    <SidebarMenuSubItem key={subItem.title}>
+                      <SidebarMenuSubButton asChild>
+                        <Link href={subItem.url}>
+                          {subItem.icon && <subItem.icon className="mr-2 h-4 w-4" />}
+                          <span>{subItem.title}</span>
+                        </Link>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                  ))}
                 </SidebarMenuSub>
               </CollapsibleContent>
             </SidebarMenuItem>

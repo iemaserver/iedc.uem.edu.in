@@ -6,7 +6,8 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import type { NextAuthOptions } from "next-auth";
 import { comparePassword } from "@/utils/basicUtility/comparePassword";
-import { UserType } from "@prisma/client";
+import { UserRole } from "@prisma/client";
+import { ensureUserProfile, determineUserRole } from "@/lib/createUserProfile";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
@@ -14,19 +15,20 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      allowDangerousEmailAccountLinking: true, // Allow linking accounts with same email
       async profile(profile) {
-        // Check LegacyUser before creating/updating
-        const legacyUser = await prisma.legacyUser.findUnique({
-          where: { email: profile.email },
-        });
+        // Determine user role from FacultyUser table
+        const userRole = await determineUserRole(profile.email);
 
+        // Return profile data - adapter will handle user creation
+        // We'll handle profile creation in the signIn callback
         return {
           id: profile.sub,
           email: profile.email,
-          fullName: legacyUser ? legacyUser.fullName : profile.name,
+          name: profile.name,
           image: profile.picture,
-          userType: legacyUser ? legacyUser.userType : "STUDENT",
-          isVerified: true, // For Google auth
+          role: userRole,
+          emailVerified: new Date(),
         };
       },
     }),
@@ -38,73 +40,123 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       authorize: async (credentials) => {
-  if (!credentials?.email || !credentials?.password) {
-    throw new Error("Email and password are required");
-  }
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("Email and password are required");
+        }
 
-  const user = await prisma.user.findUnique({
-    where: { email: credentials.email },
-  });
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email },
+          include: {
+            studentProfile: true,
+            teacherProfile: true,
+          },
+        });
 
-  if (!user || !(await comparePassword(credentials.password, user.password!))) {
-    throw new Error("Invalid credentials");
-  }
+        if (!user) {
+          throw new Error("Invalid credentials");
+        }
 
-  // Check LegacyUser model for role
-  const legacyUser = await prisma.legacyUser.findUnique({
-    where: { email: credentials.email },
-  });
+        if (!user.password) {
+          throw new Error("Please sign in with your OAuth provider");
+        }
 
-  if (legacyUser) {
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { userType: legacyUser.userType },
-    });
-    user.userType = legacyUser.userType;
-  } else {
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { userType: "STUDENT" },
-    });
-    user.userType = "STUDENT";
-  }
+        const isPasswordValid = await comparePassword(credentials.password, user.password);
+        if (!isPasswordValid) {
+          throw new Error("Invalid credentials");
+        }
 
-  return {
-    id: user.id,
-    fullName: user.fullName,
-    email: user.email ?? "",
-    image: user.image ?? "",
-    userType: user.userType,
-  };
-}
+        // Determine user role from FacultyUser table
+        const userRole = await determineUserRole(credentials.email);
 
+        // Update user role if needed (but don't override ADMIN)
+        if (user.role !== userRole && user.role !== UserRole.ADMIN) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { role: userRole },
+          });
+        }
+
+        // Always ensure profile exists for non-ADMIN users
+        await ensureUserProfile(user.id, userRole, user.email);
+
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email ?? "",
+          image: user.image ?? "",
+          role: userRole,
+        };
+      }
     }),
   ],
   session: { strategy: "jwt" },
   callbacks: {
-    async jwt({ token, user }) {
+    async signIn({ user, account, profile }) {
+      if (account?.provider === "google" || account?.provider === "credentials") {
+        try {
+          // Determine user role from FacultyUser table
+          const userRole = await determineUserRole(user.email!);
+
+          // Find the user
+          const dbUser = await prisma.user.findUnique({
+            where: { email: user.email! },
+          });
+
+          if (dbUser) {
+            // Update role if changed (but don't override ADMIN)
+            if (dbUser.role !== userRole && dbUser.role !== UserRole.ADMIN) {
+              await prisma.user.update({
+                where: { id: dbUser.id },
+                data: { role: userRole },
+              });
+            }
+
+            // Ensure appropriate profile exists
+            await ensureUserProfile(dbUser.id, userRole, user.email!);
+          }
+        } catch (error) {
+          console.error("Error in signIn callback:", error);
+          // Still allow sign-in even if profile creation fails
+          // Profile will be created on next attempt or can be handled separately
+        }
+      }
+      return true;
+    },
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;
-        token.fullName = user.fullName;
+        token.name = user.name;
         token.email = user.email;
-        token.userType = user.userType;
+        token.role = user.role;
         token.image = user.image;
       }
+      
+      // Re-check faculty role on each token refresh
+      if (token.email) {
+        const facultyUser = await prisma.facultyUser.findUnique({
+          where: { email: token.email },
+        });
+        
+        if (facultyUser) {
+          token.role = facultyUser.role;
+        }
+      }
+      
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        session.user.fullName = token.fullName as string;
+        session.user.name = token.name as string;
         session.user.email = token.email as string;
-        session.user.userType = token.userType as UserType;
+        session.user.role = token.role as UserRole;
         session.user.image = token.image as string;
       }
       return session;
     },
   },
   pages: {
-    signIn: "/auth/signin",
-    error: "/auth/error",
+    signIn: "/signup",
+    error: "/signup",
   },
 };

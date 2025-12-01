@@ -58,50 +58,52 @@ export function CarouselPublishedProject({
                           : paper.abstract}
                       </p>
                     )}
-                    {paper.author.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {paper.author.map((author) => (
+                    
+                    {/* Student Author */}
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <span className="text-sm font-medium">Author:</span>
+                      <Badge variant="default" className="text-sm">
+                        {paper.student.user.name}
+                      </Badge>
+                    </div>
+
+                    {/* Team Members */}
+                    {paper.members && paper.members.length > 0 && (
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <span className="text-sm font-medium">Team Members:</span>
+                        {paper.members.map((memberObj) => (
                           <Badge
-                            key={author.id}
+                            key={memberObj.member.id}
                             variant="outline"
-                            className="text-sm font-semibold mb-2"
+                            className="text-sm"
                           >
-                            {author.name}
+                            {memberObj.member.name}
+                            {memberObj.role && ` (${memberObj.role})`}
                           </Badge>
                         ))}
                       </div>
                     )}
 
-                    {paper.facultyAdvisors &&
-                      paper.facultyAdvisors.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          Faculty Advisors : 
-                          {paper.facultyAdvisors.map((advisor) => (
-                            <Badge
-                              key={advisor.id}
-                              variant="outline"
-                              className="text-sm font-semibold mb-2"
-                            >
-                              {advisor.name}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    {paper.reviewer && (
-                      <p className="text-lg text-gray-500">
-                        Reviewers: {paper.reviewer.name}
-                      </p>
+                    {/* Reviewed By */}
+                    {paper.reviewedBy && (
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <span className="text-sm font-medium">Reviewed By:</span>
+                        <Badge variant="secondary" className="text-sm">
+                          {paper.reviewedBy.user.name}
+                        </Badge>
+                      </div>
                     )}
-                    {paper.submissionDate && (
+                    
+                    {paper.publishedAt && (
                       <p className="text-xs text-gray-400 mt-2">
                         Published on:{" "}
-                        {new Date(paper.submissionDate).toLocaleDateString()}
+                        {new Date(paper.publishedAt).toLocaleDateString()}
                       </p>
                     )}
                   </CardContent>
                   <CardFooter>
                     <div className="flex justify-between w-full">
-                      <Button variant="outline">
+                      <Button variant="outline" asChild>
                         <Link
                           href={`/paper/${paper.id}`}
                           className="flex items-center"
@@ -109,16 +111,19 @@ export function CarouselPublishedProject({
                           View Details
                         </Link>
                       </Button>
-                      <Button variant="default">
-                        
-                        <a
-                          href={paper.filePath}
-                          target="_blank"
-                          rel="noopener noreferrer">
-                            <DownloadIcon className="w-4 h-4 mr-2 inline" />
+                      {paper.documentUrl && (
+                        <Button variant="default" asChild>
+                          <a
+                            href={paper.documentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center"
+                          >
+                            <DownloadIcon className="w-4 h-4 mr-2" />
                             Download
                           </a>
                         </Button>
+                      )}
                     </div>
                   </CardFooter>
                 </Card>
