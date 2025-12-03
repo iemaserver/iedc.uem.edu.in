@@ -10,44 +10,71 @@ import WhoAreWe from "./_homeElement/WhoAreWe";
 import HomeFirstElement from "./_homeElement/homeFirstElement";
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { Achievement, OnGoingProject as PrismaOnGoingProject, ProjectStatus, ResearchPaper } from "@prisma/client";
+import { Achievement, OngoingProject as PrismaOngoingProject, SubmissionStatus, ResearchPaper } from "@prisma/client";
 import Footer from "./_homeElement/Footer";
 import Sidebar from "./_homeElement/Achievement";
 
 // --- New type definition for the fetched project data ---
 // We need to extend the Prisma type to include the related models
-interface OnGoingProjectWithRelations extends PrismaOnGoingProject {
-  facultyAdvisors: {
-    id: string;
-    name: string;
-    email: string;
+interface OnGoingProjectWithRelations extends PrismaOngoingProject {
+  student: {
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      image: string | null;
+    };
+  };
+  advisors: {
+    advisor: {
+      id: string;
+      name: string;
+      email: string;
+      image: string | null;
+      role: string;
+    };
   }[];
   members: {
-    id: string;
-    name: string;
-    email: string;
+    member: {
+      id: string;
+      name: string;
+      email: string;
+      image: string | null;
+      role: string;
+    };
   }[];
   // Re-declare to ensure correct type from Prisma schema
-  status: ProjectStatus;
+  status: SubmissionStatus;
 }
 
 
 export interface ResearchPaperWithRelations extends ResearchPaper {
-  reviewer: {
+  student: {
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      image: string | null;
+    };
+  };
+  members: {
+    member: {
+      id: string;
+      name: string;
+      email: string;
+      image: string | null;
+    };
+    role: string | null;
+  }[];
+  reviewedBy?: {
     id: string;
-    name: string;
-    email: string;
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      image: string | null;
+    };
   } | null;
-  author: {
-    id: string;
-    name: string;
-    email: string;
-  }[];
-  facultyAdvisors: {
-    id: string;
-    name: string;
-    email: string;
-  }[];
 }
 
 
@@ -73,11 +100,12 @@ export default function Home() {
       try {
         setIsLoading(true);
         setError(null);
-        const response = await axios.get("/api/paper/ongoingProject");
+        const response = await axios.get("/api/ongoing-project?status=PUBLISHED");
         console.log("ongoing project response is ", response.data);
         
-        if (response.data && response.data.data) {
-          setOngoingProjectData(response.data.data);
+        // API returns array directly, not wrapped in data
+        if (Array.isArray(response.data)) {
+          setOngoingProjectData(response.data);
         } else {
           setOngoingProjectData([]);
         }
@@ -92,25 +120,25 @@ export default function Home() {
     
     fetchOngoingProjects();
   }, []);
-  const [achievements, setAchievements] =useState<Achievement[]>([]);
- useEffect(() => {
-    try{
-      const fetchAchievements = async () => {
-        const response = await axios.get("/api/user/admin/achievement");
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  useEffect(() => {
+    const fetchAchievements = async () => {
+      try {
+        const response = await axios.get("/api/achievement?isPublished=true");
         if (response.status !== 200) {
           throw new Error("Failed to fetch achievements");
         }
-        const data = response.data as Achievement[];
-        console.log("Fetched Achievements:", data);
-        setAchievements(data);
-      };
+        // API returns { data: [...], pagination: {...} }
+        const achievementsData = response.data.data || [];
+        console.log("Fetched Achievements:", achievementsData);
+        setAchievements(achievementsData);
+      } catch (error) {
+        console.error("Failed to fetch achievements:", error);
+        setAchievements([]);
+      }
+    };
 
-      fetchAchievements();
-      
-    } catch (error) {
-      console.error(error);
-    }
-    
+    fetchAchievements();
   }, []);
   
   // Fetch research papers
@@ -118,9 +146,11 @@ export default function Home() {
     const fetchResearchPapers = async () => {
       try {
         setIsLoading(true);
-        const response = await axios.get("/api/paper/researchPaper");
-        setResearchPaper(response.data.data || []);
-        console.log("Published papers fetched:", response.data.data);
+        const response = await axios.get("/api/research-paper?status=PUBLISHED");
+        // API returns { success: true, data: [...] }
+        const papers = response.data?.data || [];
+        setResearchPaper(papers);
+        console.log("Published papers fetched:", papers);
       } catch (error) {
         console.error("Failed to fetch published papers:", error);
         setResearchPaper([]);
@@ -179,10 +209,10 @@ export default function Home() {
             Laboratory Facilities
           </p>
           <p className="text-justify text-md">
-            Lorem ipsum dolor sit amet consectetur adipisicing elit. Autem alias
+            {/* Lorem ipsum dolor sit amet consectetur adipisicing elit. Autem alias
             vel itaque quibusdam dignissimos similique doloribus provident
             quidem suscipit, asperiores obcaecati repellendus laudantium animi
-            modi impedit a? Animi, similique dicta?
+            modi impedit a? Animi, similique dicta? */}
           </p>
           <p className="hidden md:block">
             Lorem ipsum dolor sit, amet consectetur adipisicing elit.

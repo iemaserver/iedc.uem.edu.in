@@ -11,22 +11,25 @@ const protectedRoutes = [
 
 // Define admin-only routes
 const adminRoutes = [
+  '/dashboard/admin',
   '/dashboard/userlist',
   '/dashboard/achievement',
   '/dashboard/adminpaperwork',
   '/dashboard/OnGoingProject',
   '/dashboard/reviewerlist',
-  '/api/user/admin',
+  '/api/admin',
 ];
 
 // Define faculty-only routes
 const facultyRoutes = [
   '/dashboard/faculty',
+  '/api/teacher',
 ];
 
 // Define student-only routes
 const studentRoutes = [
   '/dashboard/student',
+  '/api/student',
 ];
 
 // Public routes that don't require authentication
@@ -80,34 +83,52 @@ export async function middleware(request: NextRequest) {
     }
 
     // Check role-based access
-    const userType = token.userType as string;
+    const userRole = token.role as string;
 
     // Check admin-only routes
     if (adminRoutes.some(route => pathname.startsWith(route))) {
-      if (userType !== 'ADMIN') {
+      if (userRole !== 'ADMIN') {
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
     }
 
-    // Check faculty-only routes
+    // Check faculty-only routes (TEACHER or ADMIN can access)
     if (facultyRoutes.some(route => pathname.startsWith(route))) {
-      if (userType !== 'FACULTY' && userType !== 'ADMIN') {
+      if (userRole !== 'TEACHER' && userRole !== 'ADMIN') {
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
     }
 
-    // Check student-only routes
+    // Check student-only routes (STUDENT or ADMIN can access)
     if (studentRoutes.some(route => pathname.startsWith(route))) {
-      if (userType !== 'STUDENT' && userType !== 'ADMIN') {
+      if (userRole !== 'STUDENT' && userRole !== 'ADMIN') {
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
     }
 
     // Check API route permissions
-    if (pathname.startsWith('/api/user/admin')) {
-      if (userType !== 'ADMIN') {
+    if (pathname.startsWith('/api/admin')) {
+      if (userRole !== 'ADMIN') {
         return NextResponse.json(
           { error: 'Forbidden: Admin access required' },
+          { status: 403 }
+        );
+      }
+    }
+
+    if (pathname.startsWith('/api/teacher')) {
+      if (userRole !== 'TEACHER' && userRole !== 'ADMIN') {
+        return NextResponse.json(
+          { error: 'Forbidden: Teacher access required' },
+          { status: 403 }
+        );
+      }
+    }
+
+    if (pathname.startsWith('/api/student')) {
+      if (userRole !== 'STUDENT' && userRole !== 'ADMIN') {
+        return NextResponse.json(
+          { error: 'Forbidden: Student access required' },
           { status: 403 }
         );
       }
@@ -117,7 +138,7 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith('/api/')) {
       const requestHeaders = new Headers(request.headers);
       requestHeaders.set('x-user-id', token.sub || '');
-      requestHeaders.set('x-user-type', userType || '');
+      requestHeaders.set('x-user-role', userRole || '');
       requestHeaders.set('x-user-email', token.email || '');
 
       return NextResponse.next({

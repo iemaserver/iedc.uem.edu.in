@@ -7,147 +7,712 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// =======================================================
+// ENUMS
+// =======================================================
 
-// ─────────────────────────────────────────────────────────────
-// MODELS
-// ─────────────────────────────────────────────────────────────
-
-model User {
-  id                     String    @id @default(uuid())
-  name                   String   
-  email                  String    @unique
-  facultyAcademicDetails String?
-  facultyResearchInterests String?
-  password               String?
-  degree                 String?
-  year                   Int?
-  department             String?
-  university             String?
-  areaOfInterest         String[]
-  position               String?
-  profileImage           String?
-  resetToken             String?   @unique
-  resetTokenExpiry       DateTime?
-  isVerified             Boolean   @default(false)
-  userType               UserType  @default(STUDENT)
-  verificationCode       String?
-  verificationCodeExpiry DateTime?
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
-  Paper                  ResearchPaper[] @relation("PaperAuthors")
-  facultyAdvisorPapers   ResearchPaper[] @relation("PaperFacultyAdvisors")
-  reviewedPapers         ResearchPaper[] @relation("PaperReviewer")
-  advisedProjects        OnGoingProject[] @relation("UserFacultyAdvisor")
-  projectMemberships     OnGoingProject[] @relation("ProjectMembers")
-  reviewedProjects       OnGoingProject[] @relation("ProjectReviewer")
+enum crdb_internal_region {
+  aws_ap_south_1 @map("aws-ap-south-1")
 }
 
-enum UserType {
+enum UserRole {
   STUDENT
-  FACULTY
+  TEACHER
   ADMIN
 }
 
-enum ReviewerStatus {
+enum PublicationStatus {
   ACCEPTED
+  COMMUNICATED
+  PUBLISHED
+}
+
+enum SubmissionStatus {
+  DRAFT
+  UNDER_REVIEW
+  APPROVED
+  PUBLISHED
   REJECTED
-  PENDING
-  ONGOING
-  ACCEPTED_FOR_PUBLISH
-  REJECTED_FOR_PUBLISH
-  NEEDS_UPDATES // For when reviewer requests student to make changes
 }
 
-
-enum PaperStatus {
-  UPLOAD
-  ON_REVIEW
-  PUBLISH
-  REJECT
+enum AccountProvider {
+  GOOGLE
+  GITHUB
+  CREDENTIALS
 }
 
+// =======================================================
+// NEXTAUTH MODELS
+// =======================================================
 
-model ResearchPaper {
-  id              String      @id @default(uuid())
-  title           String
-  abstract        String
-  filePath        String
-  author          User[]      @relation("PaperAuthors")
-  keywords        String[]
-  submissionDate  DateTime    @default(now())
-  lastUpdated     DateTime    @updatedAt
-  reviewer        User?       @relation("PaperReviewer", fields: [reviewerId], references: [id])
-  reviewerId      String?
-  status          PaperStatus @default(UPLOAD)
-  reviewerStatus  ReviewerStatus @default(PENDING)
-  facultyAdvisors User[]      @relation("PaperFacultyAdvisors")
+model Account {
+  id                String   @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// =======================================================
+// USER MANAGEMENT
+// =======================================================
+
+
+model FacultyUser {
+  id           String    @id @default(uuid())
+  email         String    @unique
+  role        UserRole  @default(TEACHER)
+  
+}
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  emailVerified DateTime?
+  password      String?   // Only for credential-based auth
+  name          String
+  image         String?
+  role          UserRole  @default(STUDENT)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // NextAuth relations
+  accounts Account[]
+  sessions Session[]
+
+  // Password reset
+  passwordResetToken      String?   @unique
+  passwordResetTokenExpiry DateTime?
+
+  // Profile relations (one-to-one based on role)
+  studentProfile StudentProfile?
+  teacherProfile TeacherProfile?
+
+  // Achievements
+  achievements Achievement[]
+  memberOfResearchPapers   ResearchPaperMember[]
+  advisedOngoingProjects   OngoingProjectAdvisor[]
+  memberOfOngoingProjects  OngoingProjectMember[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model StudentProfile {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  rollNumber String   @unique
+  batch      String
+  year       Int
+  section    String
+  department String
+  
+  phoneNumber String?
+  address     String?
+  dateOfBirth DateTime? @db.Date
+  guardianName String?
+  guardianPhone String?
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Student's own research papers and projects
+  researchPapers  ResearchPaper[]
+  ongoingProjects OngoingProject[]
+
+  @@index([department, year, section])
+  @@index([rollNumber])
+}
+
+model TeacherProfile {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  employeeId        String   @unique
+  department        String
+  designation       String
+  affiliation       String
+  officialEmail     String?  @unique
+  
+  phoneNumber       String?
+  address           String?
+  subjectOfInterest String[]
+  qualification     String?
+  experience        Int?     // Years of experience
+  
+  isAvailableForGuidance Boolean @default(true)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Research work many-to-many relations
+  copyrights       CopyrightInventor[]
+  patents          PatentInventor[]
+  transactions     TransactionAuthor[]
+  conferences      ConferenceAuthor[]
+  journals         JournalAuthor[]
+  bookChapters     BookChapterAuthor[]
+  grants           GrantInvestigator[]
+  fdps             FDPParticipant[]
+  certifications   CertificationHolder[]
+
+
+
+  // Ongoing projects advised
+  reviewedPapers   ResearchPaper[]
+
+  @@index([department])
+  @@index([employeeId])
+}
+
+// =======================================================
+// TEACHER RESEARCH WORKS - Direct connections with many-to-many
+// =======================================================
+
+model Copyright {
+  id               String              @id @default(uuid())
+  title            String
+  filedAt          DateTime?           @db.Date
+  submittedAt      DateTime?           @db.Date
+  publishedAt      DateTime?           @db.Date
+  grantedAt        DateTime?           @db.Date
+
+  
+  isPublic         Boolean             @default(false)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  
+  // Many-to-many with teachers (inventors)
+  inventors        CopyrightInventor[]
+  
+  @@index([isPublic])
+}
+
+model CopyrightInventor {
+  id           String         @id @default(uuid())
+  copyrightId  String
+  teacherId    String
+  orderIndex   Int            @default(0)
+  
+  copyright    Copyright      @relation(fields: [copyrightId], references: [id], onDelete: Cascade)
+  teacher      TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  
+  @@unique([copyrightId, teacherId])
+  @@index([teacherId])
+}
+
+model Patent {
+  id               String          @id @default(uuid())
+  title            String
+  applicant        String
+  applicationNo    String?         @unique
+  patentNumber     String?         @unique
+  
+  filedAt          DateTime?       @db.Date
+  submittedAt      DateTime?       @db.Date
+  publishedAt      DateTime?       @db.Date
+  grantedAt        DateTime?       @db.Date
+  
+  publicationLink  String?
+  patentLink       String?
+  country          String?
+  
+  isPublic         Boolean         @default(false)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  
+  // Many-to-many with teachers (inventors)
+  inventors        PatentInventor[]
+  
+  @@index([applicationNo])
+  @@index([patentNumber])
+  @@index([isPublic])
+}
+
+model PatentInventor {
+  id         String         @id @default(uuid())
+  patentId   String
+  teacherId  String
+  orderIndex Int            @default(0)
+  
+  patent     Patent         @relation(fields: [patentId], references: [id], onDelete: Cascade)
+  teacher    TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  
+  @@unique([patentId, teacherId])
+  @@index([teacherId])
+}
+
+model Transaction {
+  id                  String              @id @default(uuid())
+  title               String
+  transactionName     String
+  typeOfTransaction   String?
+  indexOfTransaction  String?
+  impactFactor        Float?
+  impactFactorDate    DateTime?           @db.Date
+  publisher           String?
+  
+  status              PublicationStatus
+  statusDate          DateTime            @db.Date
+  paperLinkDOI        String?
+  
+  registrationFees    Float?
+  reimbursementStatus String?
+  isPublic            Boolean             @default(false)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  
+  // Many-to-many with teachers (authors)
+  authors             TransactionAuthor[]
+  
+  @@index([isPublic])
+}
+
+model TransactionAuthor {
+  id            String         @id @default(uuid())
+  transactionId String
+  teacherId     String
+  orderIndex    Int            @default(0)
+  
+  transaction   Transaction    @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  teacher       TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  
+  @@unique([transactionId, teacherId])
+  @@index([teacherId])
+}
+
+model Conference {
+  id                  String            @id @default(uuid())
+  title               String
+  conferenceName      String
+  mode                String?           // Online / Offline / Hybrid
+  typeOfConference    String?
+  indexOfConference   String?
+  publisher           String?
+  location            String?
+  
+  conferenceStartDate DateTime?         @db.Date
+  conferenceEndDate   DateTime?         @db.Date
+  
+  status              PublicationStatus
+  statusDate          DateTime          @db.Date
+  paperLinkDOI        String?
+  
+  registrationFees    Float?
+  reimbursementStatus String?
+  reimbursementDate   DateTime?         @db.Date
+  
+  isPublic            Boolean           @default(false)
+  
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  
+  // Many-to-many with teachers (authors)
+  authors             ConferenceAuthor[]
+  
+  @@index([conferenceStartDate])
+  @@index([isPublic])
+}
+
+model ConferenceAuthor {
+  id           String         @id @default(uuid())
+  conferenceId String
+  teacherId    String
+  orderIndex   Int            @default(0)
+  
+  conference   Conference     @relation(fields: [conferenceId], references: [id], onDelete: Cascade)
+  teacher      TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  
+  @@unique([conferenceId, teacherId])
+  @@index([teacherId])
+}
+
+model Journal {
+  id                  String          @id @default(uuid())
+  title               String
+  journalName         String
+  typeOfJournal       String?
+  indexOfJournal      String?
+  impactFactor        Float?
+  impactFactorDate    DateTime?       @db.Date
+  publisher           String?
+  status              PublicationStatus
+  statusDate          DateTime        @db.Date
+  paperLinkDOI        String?
+  
+  registrationFees    Float?
+  reimbursementStatus String?
+  reimbursementDate   DateTime?       @db.Date
+  
+  isPublic            Boolean         @default(false)
+
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  
+  // Many-to-many with teachers (authors)
+  authors             JournalAuthor[]
+  
+  @@index([isPublic])
+}
+
+model JournalAuthor {
+  id         String         @id @default(uuid())
+  journalId  String
+  teacherId  String
+  orderIndex Int            @default(0)
+  
+  journal    Journal        @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  teacher    TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  
+  @@unique([journalId, teacherId])
+  @@index([teacherId])
+}
+
+model BookChapter {
+  id                  String              @id @default(uuid())
+  title               String
+  status              PublicationStatus
+  isbnIssn            String?
+  registrationFees    Float?
+  reimbursement       Int?
+  
+  isPublic            Boolean             @default(false)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  
+  // Many-to-many with teachers (authors)
+  authors             BookChapterAuthor[]
+  
+  @@index([isPublic])
+}
+
+model BookChapterAuthor {
+  id            String         @id @default(uuid())
+  bookChapterId String
+  teacherId     String
+  orderIndex    Int            @default(0)
+  
+  bookChapter   BookChapter    @relation(fields: [bookChapterId], references: [id], onDelete: Cascade)
+  teacher       TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  
+  @@unique([bookChapterId, teacherId])
+  @@index([teacherId])
+}
+
+model GrantIn {
+  id                  String             @id @default(uuid())
+  title               String
+  projectCode         String?            @unique
+  projectPI          String?
+  projectCoPI        String?
+  status              String?
+  appliedAt           DateTime?          @db.Date
+  grantedAt           DateTime?          @db.Date
+  completedAt         DateTime?          @db.Date
+  
+  durationMonths      Int?
+  grantAmount         Float?
+  utilizedAmount      Float?
+  remainingAmount     Float?
+  
+  publication         String?
+  publicationDetails  String?
+  
+  isPublic            Boolean            @default(false)
+ 
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  
+  // Many-to-many with teachers (investigators - PI and Co-PI)
+  investigators       GrantInvestigator[]
+  
+  @@index([projectCode])
+  @@index([isPublic])
+}
+
+model GrantInvestigator {
+  id         String         @id @default(uuid())
+  grantId    String
+  teacherId  String
+  role       String         // PI or Co-PI
+  orderIndex Int            @default(0)
+  
+  grant      GrantIn        @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  teacher    TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  
+  @@unique([grantId, teacherId])
+  @@index([teacherId])
+}
+
+model FDP {
+  id                String            @id @default(uuid())
+  name              String
+ 
+  organizedBy       String?
+  sponsoredBy       String?
+  venue             String?
+  
+  duration          String?
+  startDate         DateTime?         @db.Date
+  endDate           DateTime?         @db.Date
+  
+  topic             String?
+  certificateUrl    String?
+  remarks           String?
+  
+  isPublic          Boolean           @default(false)
+ 
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  // Many-to-many with teachers (participants)
+  participants      FDPParticipant[]
+  
+  @@index([startDate])
+  @@index([isPublic])
+}
+
+model FDPParticipant {
+  id                String         @id @default(uuid())
+  fdpId             String
+  teacherId         String
+  participationType String?        // Participant, Resource Person, Coordinator
+  
+  fdp               FDP            @relation(fields: [fdpId], references: [id], onDelete: Cascade)
+  teacher           TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  
+  @@unique([fdpId, teacherId])
+  @@index([teacherId])
+}
+
+model Certification {
+  id                String               @id @default(uuid())
+  certificationName String
+ 
+  offeredBy         String?
+  completedAt       DateTime?            @db.Date
+  link              String?
+  remarks           String?
+  
+  isPublic          Boolean              @default(false)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  
+  // Many-to-many with teachers (holders)
+  holders           CertificationHolder[]
+  
+  @@index([completedAt])
+  @@index([isPublic])
+}
+
+model CertificationHolder {
+  id              String         @id @default(uuid())
+  certificationId String
+  teacherId       String
+  
+  certification   Certification  @relation(fields: [certificationId], references: [id], onDelete: Cascade)
+  teacher         TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  
+  @@unique([certificationId, teacherId])
+  @@index([teacherId])
+}
+
+// =======================================================
+// ACHIEVEMENTS
+// =======================================================
 
 model Achievement {
-  id                 String   @id @default(uuid())
-  title              String
-  description        String
-  image              String?
-  link               String?
-  achievementDate    DateTime
-  category           String
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  homePageVisibility Boolean  @default(false)
+  id           String   @id @default(uuid())
+  title        String
+  description  String?
+  category     String?  // Award, Competition, Recognition, etc.
+  imageUrl     String?
+  link         String?
   
+  achievedAt   DateTime? @db.Date
+  uploadedAt   DateTime @default(now())
+  isPublished  Boolean  @default(false)
   
- 
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  
+  @@index([uploadedById])
+  @@index([isPublished])
 }
 
-model UserDetails {
-  id       String   @id @default(uuid())
-  email    String   @unique
-  name     String  
-  userType UserType
-}
+// =======================================================
+// STUDENT PROJECTS & PAPERS (Many-to-Many)
+// =======================================================
 
-
-
-
-model OnGoingProject{
-  id          String   @id @default(uuid())
+model ResearchPaper {
+  id          String           @id @default(uuid())
+  studentId   String
+  student     StudentProfile   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
   title       String
-  description String
-  facultyAdvisors User[] @relation("UserFacultyAdvisor")
-  projectLink String?
-  projectImage String?
-  projectType String?
-  projectTags String[]
-  startDate   DateTime @default(now())
-  endDate     DateTime?
-  status      ProjectStatus @default(UPLOAD)
-  members     User[]   @relation("ProjectMembers")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  abstract    String?
+  imageUrl    String?
+  documentUrl String?
   
-  // Reviewer fields
-  reviewer    User?    @relation("ProjectReviewer", fields: [reviewerId], references: [id])
-  reviewerId  String?
-  reviewerStatus ReviewerStatus @default(PENDING)
-  reviewerComments String?
-  reviewedAt  DateTime?
+  status      SubmissionStatus @default(DRAFT)
+  keywords    String[]
   
-  // Student update fields (when reviewer requests changes)
-  needsUpdate Boolean @default(false)
-  updateRequest String? // Reviewer's request for updates
-  updateDeadline DateTime? // Deadline for student updates
-  studentUpdateComments String? // Student's response to update request
-  studentUpdatedAt DateTime? // When student last updated
+  submittedAt DateTime?
+  approvedAt  DateTime?
+  publishedAt DateTime?
+  
+  createdAt   DateTime         @default(now()) 
+  updatedAt   DateTime         @updatedAt
+
+  members     ResearchPaperMember[]
+  reviewedBy TeacherProfile? @relation(fields: [reviewedById], references: [id])
+  reviewedById String?
+  
+  @@index([studentId])
+  @@index([status])
 }
 
 
+model ResearchPaperMember {
+  id              String        @id @default(uuid())
+  researchPaperId String
+  memberId        String
+  
+  researchPaper   ResearchPaper @relation(fields: [researchPaperId], references: [id], onDelete: Cascade)
+  member          User          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  
+  role            String?       // Lead Author, Co-Author, etc.
+  joinedAt        DateTime      @default(now())
+  
+  @@unique([researchPaperId, memberId])
+  @@index([memberId])
+}
 
+model OngoingProject {
+  id          String             @id @default(uuid())
+  studentId   String
+  student     StudentProfile     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  title       String
+  abstract    String?
+  imageUrl    String?
+  documentUrl String?
+  repositoryUrl String?
+  
+  status      SubmissionStatus   @default(DRAFT)
+  keywords    String[]
+  
+  startDate   DateTime?          @db.Date
+  expectedEndDate DateTime?      @db.Date
+  completedAt DateTime?
+  
+  submittedAt DateTime?
+  approvedAt  DateTime?
+  publishedAt DateTime?
+  
+  createdAt   DateTime           @default(now()) 
+  updatedAt   DateTime           @updatedAt
 
-enum ProjectStatus {
-  UPLOAD
-  PUBLISH
-  ONGOING
-  COMPLETED
-  CANCELLED
+  // Many-to-many relations
+  advisors    OngoingProjectAdvisor[]
+  members     OngoingProjectMember[]
+  
+  @@index([studentId])
+  @@index([status])
+}
+
+model OngoingProjectAdvisor {
+  id         String         @id @default(uuid())
+  projectId  String
+  advisorId  String
+  
+  project    OngoingProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  advisor    User           @relation(fields: [advisorId], references: [id], onDelete: Cascade)
+  
+  assignedAt DateTime       @default(now())
+  
+  @@unique([projectId, advisorId])
+  @@index([advisorId])
+}
+
+model OngoingProjectMember {
+  id        String         @id @default(uuid())
+  projectId String
+  memberId  String
+  
+  project   OngoingProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  member    User           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  
+  role      String?        // Team Lead, Developer, Researcher, etc.
+  joinedAt  DateTime       @default(now())
+  
+  @@unique([projectId, memberId])
+  @@index([memberId])
+}
+
+// =======================================================
+// ADDITIONAL FEATURES
+// =======================================================
+
+model UpcomingCompetition {
+  id               String    @id @default(uuid())
+  title            String
+  description      String?
+  category         String?
+  
+  startDate        DateTime
+  endDate          DateTime?
+  registrationDeadline DateTime?
+  
+  location         String?
+  mode             String?   // Online, Offline, Hybrid
+  organizer        String?
+  prizeDetails     String?
+  eligibilityCriteria String?
+  
+  registrationLink String?
+  websiteUrl       String?
+  posterUrl        String?
+  
+  isPublished      Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([startDate])
+  @@index([isPublished])
 }

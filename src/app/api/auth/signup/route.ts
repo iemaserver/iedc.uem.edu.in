@@ -1,29 +1,73 @@
-import { prisma } from "@/lib/prisma";
-import { hash } from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
+import prisma from "@/lib/prisma";
+import bcrypt from "bcryptjs";
+import { z } from "zod";
+import { UserRole } from "@prisma/client";
 import { sendVerificationEmail } from "@/utils/mail/sendVarificationMail";
+import { determineUserRole, createUserWithProfile } from "@/lib/createUserProfile";
+
+const signupSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
 
 export async function POST(req: NextRequest) {
-  const { name, email, password } = await req.json();
+  try {
+    const body = await req.json();
+    const parsed = signupSchema.safeParse(body);
+    
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      );
+    }
 
-  const userExists = await prisma.user.findUnique({ where: { email } });
-  if (userExists) return NextResponse.json({ error: "User already exists" }, { status: 400 });
+    const { name, email, password } = parsed.data;
 
-  const hashedPassword = await hash(password, 12);
-  const code = crypto.randomInt(100000, 999999).toString(); // 6-digit code
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return NextResponse.json(
+        { error: "Email already registered" },
+        { status: 409 }
+      );
+    }
 
-  const user = await prisma.user.create({
-    data: {
+    // Determine user role from FacultyUser table
+    const userRole = await determineUserRole(email);
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Create user with appropriate role and profile in a single transaction
+    const newUser = await createUserWithProfile({
       name,
       email,
       password: hashedPassword,
-      verificationCode: code,
-      verificationCodeExpiry: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
-    },
-  });
+      role: userRole,
+      emailVerified: null,
+      passwordResetToken: otp,
+      passwordResetTokenExpiry: new Date(Date.now() + 3600000), // 1 hour
+    });
 
-  await sendVerificationEmail(email, code);
+    // Send verification email
+    await sendVerificationEmail(newUser.email, otp);
 
-  return NextResponse.json({ message: "Verification code sent to email." });
+    return NextResponse.json(
+      { 
+        message: "Signup successful. Please verify your email. Profile created.",
+        role: userRole 
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("Signup error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }

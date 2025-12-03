@@ -1,8 +1,8 @@
 "use client";
 import React from "react";
 import {
-  OnGoingProject as PrismaOnGoingProject,
-  ProjectStatus,
+  OngoingProject as PrismaOngoingProject,
+  SubmissionStatus,
 } from "@prisma/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,10 +18,34 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
 
-interface OnGoingProjectWithRelations extends PrismaOnGoingProject {
-  facultyAdvisors: { id: string; name: string; email: string }[];
-  members: { id: string; name: string; email: string }[];
-  status: ProjectStatus;
+interface OnGoingProjectWithRelations extends PrismaOngoingProject {
+  student: {
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      image: string | null;
+    };
+  };
+  advisors: {
+    advisor: {
+      id: string;
+      name: string;
+      email: string;
+      image: string | null;
+      role: string;
+    };
+  }[];
+  members: {
+    member: {
+      id: string;
+      name: string;
+      email: string;
+      image: string | null;
+      role: string;
+    };
+  }[];
+  status: SubmissionStatus;
 }
 
 function CarouselOngoingProject({
@@ -59,7 +83,7 @@ function CarouselOngoingProject({
                     {/* Image */}
                     <div className="w-full h-[20rem] relative rounded-lg overflow-hidden shadow-md">
                       <Image
-                        src={project.projectImage || "/home/gpu.png"}
+                        src={project.imageUrl || "/home/gpu.png"}
                         alt={`${project.title} image`}
                         width={600}
                         height={400}
@@ -77,16 +101,16 @@ function CarouselOngoingProject({
                           variant="outline"
                           className={cn(
                             "py-1 px-3 text-sm font-semibold rounded-full min-w-max",
-                            project.status === "ONGOING" &&
-                              "bg-yellow-100 text-yellow-800 border-yellow-300",
-                            project.status === "COMPLETED" &&
-                              "bg-green-100 text-green-800 border-green-300",
-                            project.status === "CANCELLED" &&
-                              "bg-red-100 text-red-800 border-red-300",
-                            project.status === "UPLOAD" &&
+                            project.status === "DRAFT" &&
                               "bg-gray-100 text-gray-800 border-gray-300",
-                            project.status === "PUBLISH" &&
-                              "bg-blue-100 text-blue-800 border-blue-300"
+                            project.status === "UNDER_REVIEW" &&
+                              "bg-yellow-100 text-yellow-800 border-yellow-300",
+                            project.status === "APPROVED" &&
+                              "bg-green-100 text-green-800 border-green-300",
+                            project.status === "PUBLISHED" &&
+                              "bg-blue-100 text-blue-800 border-blue-300",
+                            project.status === "REJECTED" &&
+                              "bg-red-100 text-red-800 border-red-300"
                           )}
                         >
                           {project.status}
@@ -94,31 +118,31 @@ function CarouselOngoingProject({
                       </div>
 
                       <p className="text-sm text-gray-700 leading-normal mb-3">
-                        {project.description}
+                        {project.abstract || "No description available"}
                       </p>
 
                       <div className="text-sm text-gray-600 space-y-1 mb-3">
                         <p>
                           <span className="font-semibold">Start Date:</span>{" "}
-                          {formatDate(project.startDate)}
+                          {project.startDate ? formatDate(project.startDate) : "N/A"}
                         </p>
                         <p>
-                          <span className="font-semibold">End Date:</span>{" "}
-                          {project.endDate
-                            ? formatDate(project.endDate)
+                          <span className="font-semibold">Expected End Date:</span>{" "}
+                          {project.expectedEndDate
+                            ? formatDate(project.expectedEndDate)
                             : "Ongoing"}
                         </p>
                       </div>
 
-                      {project.projectTags?.length > 0 && (
+                      {project.keywords?.length > 0 && (
                         <div className="mb-3">
                           <h4 className="font-semibold mb-1 text-sm text-gray-800">
-                            Tags:
+                            Keywords:
                           </h4>
                           <div className="flex flex-wrap gap-2">
-                            {project.projectTags.map((tag, i) => (
+                            {project.keywords.map((keyword, i) => (
                               <Badge key={i} variant="secondary">
-                                {tag}
+                                {keyword}
                               </Badge>
                             ))}
                           </div>
@@ -128,40 +152,40 @@ function CarouselOngoingProject({
                       <div className="text-sm space-y-2 mb-3">
                         <div className="flex flex-row flex-wrap gap-2 items-center">
                           <span className="font-semibold">Members:</span>
-                          {project.members?.map((member) => (
+                          {project.members?.map((memberObj) => (
                             <Badge
-                              key={member.id}
+                              key={memberObj.member.id}
                               variant="secondary"
                               className="text-sm px-2 py-1"
                             >
-                              {member.name}
+                              {memberObj.member.name}
                             </Badge>
                           ))}
                         </div>
                         <div className="flex flex-row flex-wrap gap-2 items-center">
-                          <span className="font-semibold">Faculty:</span>
-                          {project.facultyAdvisors?.map((advisor) => (
+                          <span className="font-semibold">Advisors:</span>
+                          {project.advisors?.map((advisorObj) => (
                             <Badge
-                              key={advisor.id}
+                              key={advisorObj.advisor.id}
                               variant="secondary"
                               className="text-sm px-2 py-1"
                             >
-                              {advisor.name}
+                              {advisorObj.advisor.name}
                             </Badge>
                           ))}
                         </div>
                       </div>
 
-                      {project.projectLink && (
+                      {project.repositoryUrl && (
                         <div className="mt-auto pt-2 border-t border-gray-200">
                           <Link
-                            href={project.projectLink}
+                            href={project.repositoryUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-block"
                           >
                             <Badge className="bg-blue-600 text-white hover:bg-blue-700 transition-colors py-2 px-4 text-sm">
-                              View Project
+                              View Repository
                             </Badge>
                           </Link>
                         </div>
