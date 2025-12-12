@@ -50,6 +50,14 @@ export default async function proxy(request: NextRequest) {
 
     const role = token.role;
 
+    // Check if user needs to complete profile (except for complete-profile page itself)
+    if (!pathname.startsWith("/complete-profile") && role !== "ADMIN") {
+      // Check if needsProfile flag is set in token
+      if (token.needsProfile === true) {
+        return NextResponse.redirect(new URL("/complete-profile", request.url));
+      }
+    }
+
     // Admin-only routes
     if (adminRoutes.some((r) => pathname.startsWith(r))) {
       if (role !== "ADMIN") {
@@ -82,10 +90,34 @@ export default async function proxy(request: NextRequest) {
     }
   }
 
+  // Handle complete-profile page
+  if (pathname === "/complete-profile") {
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    
+    // Must be authenticated to access profile completion
+    if (!token) {
+      return NextResponse.redirect(new URL("/signup", request.url));
+    }
+
+    // Admins don't need profile completion
+    if (token.role === "ADMIN") {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    // If profile is already complete, redirect to dashboard
+    if (token.needsProfile === false) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+  }
+
   // Prevent signed-in users from hitting signin/signup
   if (pathname === "/signin" || pathname === "/signup") {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
     if (token) {
+      // Check if they need to complete profile first
+      if (token.needsProfile === true && token.role !== "ADMIN") {
+        return NextResponse.redirect(new URL("/complete-profile", request.url));
+      }
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
   }

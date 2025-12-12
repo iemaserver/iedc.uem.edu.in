@@ -42,24 +42,31 @@ export async function POST(req: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 10);
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     
-    // Create user with appropriate role and profile in a single transaction
-    const newUser = await createUserWithProfile({
-      name,
-      email,
-      password: hashedPassword,
-      role: userRole,
-      emailVerified: null,
-      passwordResetToken: otp,
-      passwordResetTokenExpiry: new Date(Date.now() + 3600000), // 1 hour
+    // Create user WITHOUT profile - profile will be completed in separate step
+    const newUser = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        role: userRole,
+        emailVerified: null,
+        passwordResetToken: otp,
+        passwordResetTokenExpiry: new Date(Date.now() + 3600000), // 1 hour
+      },
     });
 
     // Send verification email
     await sendVerificationEmail(newUser.email, otp);
 
+    // Return with needsProfile flag for non-admin users
+    const needsProfile = userRole !== UserRole.ADMIN;
+
     return NextResponse.json(
       { 
-        message: "Signup successful. Please verify your email. Profile created.",
-        role: userRole 
+        message: "Signup successful. Please verify your email.",
+        role: userRole,
+        needsProfile,
+        userId: newUser.id
       },
       { status: 201 }
     );

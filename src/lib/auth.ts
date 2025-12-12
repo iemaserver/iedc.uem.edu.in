@@ -92,54 +92,87 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   callbacks: {
     async signIn({ user, account, profile }) {
-      // Just return true, we'll handle profile creation in jwt callback
-      return true;
+      try {
+        // Just return true, we'll handle profile creation in jwt callback
+        return true;
+      } catch (error) {
+        console.error("SignIn callback error:", error);
+        return false;
+      }
     },
     async jwt({ token, user, trigger, account }) {
-      // When user first signs in, user object will be present
-      if (user) {
-        token.id = user.id;
-        token.name = user.name;
-        token.email = user.email;
-        token.role = user.role;
-        token.image = user.image;
+      try {
+        // When user first signs in, user object will be present
+        if (user) {
+          token.id = user.id;
+          token.name = user.name;
+          token.email = user.email;
+          token.role = user.role;
+          token.image = user.image;
 
-        // Determine correct role from FacultyUser table
-        const userRole = await determineUserRole(user.email!);
-        token.role = userRole;
+          // Determine correct role from FacultyUser table
+          const userRole = await determineUserRole(user.email!);
+          token.role = userRole;
 
-        // Find the user in database
-        const dbUser = await prisma.user.findUnique({
-          where: { email: user.email! },
-          include: {
-            studentProfile: true,
-            teacherProfile: true,
-          },
-        });
+          // Find the user in database
+          const dbUser = await prisma.user.findUnique({
+            where: { email: user.email! },
+            include: {
+              studentProfile: true,
+              teacherProfile: true,
+            },
+          });
 
-        if (dbUser) {
-          // Update role if changed (but don't override ADMIN)
-          if (dbUser.role !== userRole && dbUser.role !== UserRole.ADMIN) {
-            await prisma.user.update({
-              where: { id: dbUser.id },
-              data: { role: userRole },
-            });
+          if (dbUser) {
+            // Update role if changed (but don't override ADMIN)
+            if (dbUser.role !== userRole && dbUser.role !== UserRole.ADMIN) {
+              await prisma.user.update({
+                where: { id: dbUser.id },
+                data: { role: userRole },
+              });
+            }
+
+            // Check if profile needs completion (don't auto-create)
+            const needsProfile = 
+              (userRole === UserRole.TEACHER && !dbUser.teacherProfile) ||
+              (userRole === UserRole.STUDENT && !dbUser.studentProfile);
+            
+            token.needsProfile = needsProfile;
+          }
+        }
+        
+        // Re-check faculty role and profile status on each token refresh
+        if (token.email && !user) {
+          const facultyUser = await prisma.facultyUser.findUnique({
+            where: { email: token.email },
+          });
+          
+          if (facultyUser) {
+            token.role = facultyUser.role;
           }
 
-          // Ensure appropriate profile exists (for both OAuth and credentials)
-          await ensureUserProfile(dbUser.id, userRole, user.email!);
+          // Re-check if profile completion is still needed
+          if (token.id && token.role !== "ADMIN") {
+            const dbUser = await prisma.user.findUnique({
+              where: { id: token.id as string },
+              include: {
+                studentProfile: true,
+                teacherProfile: true,
+              },
+            });
+
+            if (dbUser) {
+              const needsProfile = 
+                (token.role === "TEACHER" && !dbUser.teacherProfile) ||
+                (token.role === "STUDENT" && !dbUser.studentProfile);
+              
+              token.needsProfile = needsProfile;
+            }
+          }
         }
-      }
-      
-      // Re-check faculty role on each token refresh
-      if (token.email && !user) {
-        const facultyUser = await prisma.facultyUser.findUnique({
-          where: { email: token.email },
-        });
-        
-        if (facultyUser) {
-          token.role = facultyUser.role;
-        }
+      } catch (error) {
+        console.error("JWT callback error:", error);
+        // Return token as-is if there's an error to prevent auth failure
       }
       
       return token;
@@ -151,6 +184,7 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string;
         session.user.role = token.role as UserRole;
         session.user.image = token.image as string;
+        session.user.needsProfile = token.needsProfile as boolean | undefined;
       }
       return session;
     },
@@ -158,5 +192,11 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/signup",
     error: "/signup",
+  },
+  events: {
+    async signIn({ user, account }) {
+      // This runs after successful authentication
+      console.log("User signed in:", user.email);
+    },
   },
 };
