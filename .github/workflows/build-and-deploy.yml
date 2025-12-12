@@ -45,6 +45,8 @@ jobs:
 
       - name: Enable Firebase experiments
         run: npx firebase-tools@latest experiments:enable webframeworks
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
 
       # ✅ Add Firebase env step before deployment
       - name: Set Firebase environment variables
