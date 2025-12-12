@@ -49,6 +49,7 @@
     "motion": "^12.19.2",
     "next": "^16.0.10",
     "next-auth": "^4.24.13",
+    "pg": "^8.16.3",
     "react": "^19.0.0",
     "react-countup": "^6.5.3",
     "react-day-picker": "^9.11.1",
