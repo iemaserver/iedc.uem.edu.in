@@ -48,7 +48,7 @@ export function StatusGraph({ conferences, title = "Status Distribution", descri
           <ChartContainer config={chartConfig} className="w-full h-[200px] sm:h-[250px] lg:h-[160px]">
             <PieChart width={300} height={300}>
               <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-              <Pie data={chartData} dataKey="count" nameKey="status" innerRadius="30%" outerRadius="100%" strokeWidth={5} label={(entry) => entry.count} labelLine={false} cx="50%" cy="50%" />
+              <Pie data={chartData} dataKey="count" nameKey="status" innerRadius="30%" outerRadius="100%" strokeWidth={5} label={(entry) => entry.value} labelLine={false} cx="50%" cy="50%" />
               <Legend content={<ChartLegendContent nameKey="status" />} className="-translate-y-2 flex-wrap gap-1 sm:gap-2 text-xs [&>*]:basis-1/3 sm:[&>*]:basis-1/4 [&>*]:justify-center" />
             </PieChart>
           </ChartContainer>

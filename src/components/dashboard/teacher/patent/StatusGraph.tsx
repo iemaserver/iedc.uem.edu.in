@@ -90,7 +90,7 @@ export function StatusGraph({
                 innerRadius="30%"
                 outerRadius="100%"
                 strokeWidth={5}
-                label={(entry) => entry.count}
+                label={(entry) => entry.value}
                 labelLine={false}
                 cx="50%"
                 cy="50%"
