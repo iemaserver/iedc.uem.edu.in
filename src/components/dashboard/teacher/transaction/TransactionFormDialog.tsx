@@ -133,8 +133,15 @@ export function TransactionFormDialog({ open, onOpenChange, transaction, onSucce
         registrationFees: data.registrationFees ? parseFloat(data.registrationFees) : undefined,
         reimbursementStatus: data.reimbursementStatus || undefined,
         isPublic: data.isPublic,
-        authors: data.authors,
       };
+
+      // For POST requests, include full authors array with orderIndex
+      // For PATCH requests, include only authorIds array
+      if (isEdit) {
+        payload.authorIds = data.authors.map((author) => author.teacherId);
+      } else {
+        payload.authors = data.authors;
+      }
 
       const url = isEdit ? `/api/teacher/transaction/${transaction.id}` : "/api/teacher/transaction";
       const response = await axios({

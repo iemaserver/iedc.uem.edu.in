@@ -8,9 +8,7 @@ import { UserRole } from "@prisma/client";
 const updateSchema = z.object({
   phoneNumber: z.string().optional(),
   address: z.string().optional(),
-  dateOfBirth: z.string().optional().transform(val => val ? new Date(val) : undefined),
-  guardianName: z.string().optional(),
-  guardianPhone: z.string().optional(),
+  bio: z.string().optional(),
 });
 
 // GET: Fetch a particular student's profile by ID
@@ -125,9 +123,6 @@ export async function GET(
           ...studentProfile,
           phoneNumber: undefined,
           address: undefined,
-          dateOfBirth: undefined,
-          guardianName: undefined,
-          guardianPhone: undefined,
         },
       });
     }

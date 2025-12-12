@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useSession } from "next-auth/react";
 import {
   Dialog,
   DialogContent,
@@ -23,24 +24,23 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { X } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { X, Camera, Loader2, Briefcase } from "lucide-react";
 import toast from "react-hot-toast";
+import { uploadFile } from "@/lib/appwrite";
 
 const teacherProfileSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  employeeId: z.string().min(1, "Employee ID is required"),
   department: z.string().min(1, "Department is required"),
   designation: z.string().min(1, "Designation is required"),
   affiliation: z.string().min(1, "Affiliation is required"),
   officialEmail: z.string().email().optional().or(z.literal("")),
   phoneNumber: z.string().optional(),
   address: z.string().optional(),
+  bio: z.string().optional(),
   qualification: z.string().optional(),
-  experience: z.string().optional(),
   subjectOfInterest: z.array(z.string()),
-  isAvailableForGuidance: z.boolean(),
 });
 
 type TeacherProfileFormData = z.infer<typeof teacherProfileSchema>;
@@ -58,24 +58,25 @@ export function TeacherProfileEditDialog({
   onSuccess,
   profile,
 }: TeacherProfileEditDialogProps) {
+  const { update } = useSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string>(profile?.image || "");
   const [subjectInput, setSubjectInput] = useState("");
 
   const form = useForm<TeacherProfileFormData>({
     resolver: zodResolver(teacherProfileSchema),
     defaultValues: {
       name: profile?.name || "",
-      employeeId: profile?.teacherProfile?.employeeId || "",
       department: profile?.teacherProfile?.department || "",
       designation: profile?.teacherProfile?.designation || "",
       affiliation: profile?.teacherProfile?.affiliation || "",
       officialEmail: profile?.teacherProfile?.officialEmail || "",
       phoneNumber: profile?.teacherProfile?.phoneNumber || "",
       address: profile?.teacherProfile?.address || "",
+      bio: profile?.teacherProfile?.bio || "",
       qualification: profile?.teacherProfile?.qualification || "",
-      experience: profile?.teacherProfile?.experience?.toString() || "",
       subjectOfInterest: profile?.teacherProfile?.subjectOfInterest || [],
-      isAvailableForGuidance: profile?.teacherProfile?.isAvailableForGuidance ?? true,
     },
   });
 
@@ -97,6 +98,49 @@ export function TeacherProfileEditDialog({
     );
   };
 
+  const handleImageUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB");
+      return;
+    }
+
+    try {
+      setIsUploadingImage(true);
+
+      const imageUrl = await uploadFile(file);
+      setImagePreview(imageUrl);
+
+      const response = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: imageUrl }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update profile image");
+      }
+
+      toast.success("Profile image updated successfully!");
+      await update();
+      onSuccess();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to upload image");
+      setImagePreview(profile?.image || "");
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
   const onSubmit = async (data: TeacherProfileFormData) => {
     try {
       setIsSubmitting(true);
@@ -104,17 +148,15 @@ export function TeacherProfileEditDialog({
       const payload = {
         name: data.name,
         teacherProfile: {
-          employeeId: data.employeeId,
           department: data.department,
           designation: data.designation,
           affiliation: data.affiliation,
           officialEmail: data.officialEmail || null,
           phoneNumber: data.phoneNumber || null,
           address: data.address || null,
+          bio: data.bio || null,
           qualification: data.qualification || null,
-          experience: data.experience ? parseInt(data.experience) : null,
           subjectOfInterest: data.subjectOfInterest,
-          isAvailableForGuidance: data.isAvailableForGuidance,
         },
       };
 
@@ -130,6 +172,7 @@ export function TeacherProfileEditDialog({
       }
 
       toast.success("Profile updated successfully!");
+      await update();
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
@@ -141,24 +184,150 @@ export function TeacherProfileEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Edit Teacher Profile</DialogTitle>
-          <DialogDescription>
-            Update your professional information
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden p-0 flex flex-col">
+        {/* Gradient Header with Decorative Pattern */}
+        <div className="relative px-6 py-8 overflow-hidden" style={{
+          background: `linear-gradient(135deg, var(--first-color), var(--second-color))`,
+        }}>
+          {/* Decorative Pattern */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-0 left-0 w-32 h-32 rounded-full" style={{ background: 'white' }}></div>
+            <div className="absolute bottom-0 right-0 w-40 h-40 rounded-full" style={{ background: 'white' }}></div>
+          </div>
+          
+          <div className="relative flex items-center gap-4">
+            <div className="p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.2)' }}>
+              <Briefcase className="h-8 w-8 text-white" />
+            </div>
+            <div>
+              <DialogTitle className="text-2xl font-bold text-white mb-1">
+                Edit Teacher Profile
+              </DialogTitle>
+              <DialogDescription className="text-white/90 text-sm">
+                Update your professional information and academic details
+              </DialogDescription>
+            </div>
+          </div>
+        </div>
+
+        {/* Profile Image Section */}
+        <div className="flex justify-center py-6 px-6 border-b" style={{ borderColor: 'var(--forth-color)' }}>
+          <div className="relative">
+            <Avatar className="h-28 w-28 border-4 transition-all duration-300" style={{ 
+              borderColor: 'var(--first-color)',
+              boxShadow: `0 0 20px ${imagePreview ? 'rgba(var(--first-color), 0.3)' : 'transparent'}`
+            }}>
+              <AvatarImage src={imagePreview} alt={profile?.name} />
+              <AvatarFallback className="text-2xl font-semibold" style={{ 
+                background: 'linear-gradient(135deg, var(--first-color), var(--second-color))',
+                color: 'white'
+              }}>
+                {profile?.name?.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            
+            <label htmlFor="profile-image-upload" className="absolute bottom-0 right-0 p-2 rounded-full cursor-pointer transition-all duration-200 hover:scale-110" style={{
+              background: 'linear-gradient(135deg, var(--first-color), var(--second-color))',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+            }}>
+              {isUploadingImage ? (
+                <Loader2 className="h-4 w-4 text-white animate-spin" />
+              ) : (
+                <Camera className="h-4 w-4 text-white" />
+              )}
+              <input
+                id="profile-image-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                disabled={isUploadingImage}
+                className="hidden"
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* Scrollable Form Content with Custom Scrollbar */}
+        <div className="flex-1 overflow-y-auto px-6 py-6" style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: `var(--first-color) var(--forth-color)`,
+        }}>
+          <style jsx>{`
+            div::-webkit-scrollbar {
+              width: 8px;
+            }
+            div::-webkit-scrollbar-track {
+              background: var(--forth-color);
+              border-radius: 10px;
+            }
+            div::-webkit-scrollbar-thumb {
+              background: linear-gradient(to bottom, var(--first-color), var(--second-color));
+              border-radius: 10px;
+              transition: all 0.3s ease;
+            }
+            div::-webkit-scrollbar-thumb:hover {
+              background: linear-gradient(to bottom, var(--second-color), var(--first-color));
+            }
+          `}</style>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Personal Information Section */}
+            <div className="relative rounded-lg p-5 border" style={{
+              background: 'linear-gradient(to right, rgba(var(--first-color-rgb), 0.02), rgba(var(--second-color-rgb), 0.02))',
+              borderColor: 'var(--forth-color)'
+            }}>
+              <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg" style={{
+                background: 'linear-gradient(to bottom, var(--first-color), var(--second-color))'
+              }}></div>
+              
+              <div className="flex items-center gap-2 mb-4 pb-2 border-b" style={{ borderColor: 'var(--forth-color)' }}>
+                <div className="h-2 w-2 rounded-full" style={{ background: 'var(--first-color)' }}></div>
+                <h3 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--first-color)' }}>
+                  Personal Information
+                </h3>
+              </div>
+
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-semibold">Full Name *</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Enter your full name" className="h-11 border-2 focus:border-opacity-50 transition-all" style={{ borderColor: 'var(--third-color)' }} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Professional Information Section */}
+            <div className="relative rounded-lg p-5 border" style={{
+              background: 'linear-gradient(to right, rgba(var(--first-color-rgb), 0.02), rgba(var(--second-color-rgb), 0.02))',
+              borderColor: 'var(--forth-color)'
+            }}>
+              <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg" style={{
+                background: 'linear-gradient(to bottom, var(--first-color), var(--second-color))'
+              }}></div>
+              
+              <div className="flex items-center gap-2 mb-4 pb-2 border-b" style={{ borderColor: 'var(--forth-color)' }}>
+                <div className="h-2 w-2 rounded-full" style={{ background: 'var(--first-color)' }}></div>
+                <h3 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--first-color)' }}>
+                  Professional Details
+                </h3>
+              </div>
+
+              <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="designation"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Full Name *</FormLabel>
+                  <FormLabel className="font-semibold">Designation *</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Enter your full name" />
+                    <Input {...field} placeholder="e.g., Assistant Professor" className="h-11 border-2 focus:border-opacity-50 transition-all" style={{ borderColor: 'var(--third-color)' }} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -168,42 +337,12 @@ export function TeacherProfileEditDialog({
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="employeeId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Employee ID *</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="e.g., EMP-001" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="designation"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Designation *</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="e.g., Assistant Professor" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
                 name="department"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Department *</FormLabel>
+                    <FormLabel className="font-semibold">Department *</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="e.g., Computer Science" />
+                      <Input {...field} placeholder="e.g., Computer Science" className="h-11 border-2 focus:border-opacity-50 transition-all" style={{ borderColor: 'var(--third-color)' }} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -215,9 +354,9 @@ export function TeacherProfileEditDialog({
                 name="affiliation"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Affiliation *</FormLabel>
+                    <FormLabel className="font-semibold">Affiliation *</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="e.g., UEM Kolkata" />
+                      <Input {...field} placeholder="e.g., UEM Kolkata" className="h-11 border-2 focus:border-opacity-50 transition-all" style={{ borderColor: 'var(--third-color)' }} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -225,15 +364,62 @@ export function TeacherProfileEditDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="officialEmail"
+            <FormField
+              control={form.control}
+              name="qualification"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-semibold">Highest Qualification</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="e.g., Ph.D. in Computer Science" className="h-11 border-2 focus:border-opacity-50 transition-all" style={{ borderColor: 'var(--third-color)' }} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="bio"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-semibold">Bio</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} placeholder="Tell us about yourself" rows={4} className="border-2 focus:border-opacity-50 transition-all resize-none" style={{ borderColor: 'var(--third-color)' }} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            </div>
+            </div>
+
+            {/* Contact Information Section */}
+            <div className="relative rounded-lg p-5 border" style={{
+              background: 'linear-gradient(to right, rgba(var(--first-color-rgb), 0.02), rgba(var(--second-color-rgb), 0.02))',
+              borderColor: 'var(--forth-color)'
+            }}>
+              <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg" style={{
+                background: 'linear-gradient(to bottom, var(--first-color), var(--second-color))'
+              }}></div>
+              
+              <div className="flex items-center gap-2 mb-4 pb-2 border-b" style={{ borderColor: 'var(--forth-color)' }}>
+                <div className="h-2 w-2 rounded-full" style={{ background: 'var(--first-color)' }}></div>
+                <h3 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--first-color)' }}>
+                  Contact Information
+                </h3>
+              </div>
+
+              <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="officialEmail"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Official Email</FormLabel>
+                    <FormLabel className="font-semibold">Official Email</FormLabel>
                     <FormControl>
-                      <Input {...field} type="email" placeholder="official@university.edu" />
+                      <Input {...field} type="email" placeholder="official@university.edu" className="h-11 border-2 focus:border-opacity-50 transition-all" style={{ borderColor: 'var(--third-color)' }} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -245,9 +431,9 @@ export function TeacherProfileEditDialog({
                 name="phoneNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone Number</FormLabel>
+                    <FormLabel className="font-semibold">Phone Number</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="+91 XXXXXXXXXX" />
+                      <Input {...field} placeholder="+91 XXXXXXXXXX" className="h-11 border-2 focus:border-opacity-50 transition-all" style={{ borderColor: 'var(--third-color)' }} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -260,53 +446,41 @@ export function TeacherProfileEditDialog({
               name="address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address</FormLabel>
+                  <FormLabel className="font-semibold">Address</FormLabel>
                   <FormControl>
-                    <Textarea {...field} placeholder="Enter your address" rows={2} />
+                    <Textarea {...field} placeholder="Enter your address" rows={3} className="border-2 focus:border-opacity-50 transition-all resize-none" style={{ borderColor: 'var(--third-color)' }} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="qualification"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Highest Qualification</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="e.g., Ph.D. in Computer Science" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="experience"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Years of Experience</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="number" placeholder="e.g., 5" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
+            </div>
+
+            {/* Academic Qualifications & Interests Section */}
+            <div className="relative rounded-lg p-5 border" style={{
+              background: 'linear-gradient(to right, rgba(var(--first-color-rgb), 0.02), rgba(var(--second-color-rgb), 0.02))',
+              borderColor: 'var(--forth-color)'
+            }}>
+              <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg" style={{
+                background: 'linear-gradient(to bottom, var(--first-color), var(--second-color))'
+              }}></div>
+              
+              <div className="flex items-center gap-2 mb-4 pb-2 border-b" style={{ borderColor: 'var(--forth-color)' }}>
+                <div className="h-2 w-2 rounded-full" style={{ background: 'var(--first-color)' }}></div>
+                <h3 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--first-color)' }}>
+                  Academic Qualifications & Interests
+                </h3>
+              </div>
 
             <FormField
               control={form.control}
               name="subjectOfInterest"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Areas of Interest</FormLabel>
+                  <FormLabel className="font-semibold">Areas of Interest</FormLabel>
                   <FormControl>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <div className="flex gap-2">
                         <Input
                           value={subjectInput}
@@ -317,71 +491,94 @@ export function TeacherProfileEditDialog({
                               addSubject();
                             }
                           }}
-                          placeholder="Type and press Enter"
+                          placeholder="Type a subject and press Enter"
+                          className="h-11 border-2 focus:border-opacity-50 transition-all"
+                          style={{ borderColor: 'var(--third-color)' }}
                         />
-                        <Button type="button" onClick={addSubject}>
+                        <Button 
+                          type="button" 
+                          onClick={addSubject}
+                          className="h-11 px-6 transition-all hover:scale-105"
+                          style={{ 
+                            background: 'linear-gradient(135deg, var(--first-color), var(--second-color))',
+                            color: 'white'
+                          }}
+                        >
                           Add
                         </Button>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        {field.value.map((subject) => (
-                          <Badge key={subject} variant="secondary">
-                            {subject}
-                            <button
-                              type="button"
-                              onClick={() => removeSubject(subject)}
-                              className="ml-2"
+                      {field.value.length > 0 && (
+                        <div className="flex flex-wrap gap-2 p-3 rounded-lg border" style={{ 
+                          borderColor: 'var(--forth-color)',
+                          background: 'rgba(var(--forth-color-rgb), 0.1)'
+                        }}>
+                          {field.value.map((subject) => (
+                            <Badge 
+                              key={subject} 
+                              className="px-3 py-1.5 text-sm font-medium transition-all hover:scale-105"
+                              style={{
+                                background: 'linear-gradient(135deg, var(--first-color), var(--second-color))',
+                                color: 'white'
+                              }}
                             >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
+                              {subject}
+                              <button
+                                type="button"
+                                onClick={() => removeSubject(subject)}
+                                className="ml-2 hover:opacity-70 transition-opacity"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            <FormField
-              control={form.control}
-              name="isAvailableForGuidance"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">
-                      Available for Student Guidance
-                    </FormLabel>
-                    <FormDescription>
-                      Allow students to request you as their advisor for projects and papers
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : "Save Changes"}
-              </Button>
             </div>
           </form>
         </Form>
+        </div>
+
+        {/* Gradient Footer with Action Buttons */}
+        <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ 
+          borderColor: 'var(--forth-color)',
+          background: 'linear-gradient(to right, rgba(var(--first-color-rgb), 0.03), rgba(var(--second-color-rgb), 0.03))'
+        }}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
+            className="px-8 h-12 font-semibold border-2 transition-all hover:scale-105"
+            style={{ borderColor: 'var(--third-color)' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            onClick={form.handleSubmit(onSubmit)}
+            className="px-8 h-12 font-semibold transition-all hover:scale-105 hover:shadow-lg"
+            style={{ 
+              background: 'linear-gradient(135deg, var(--first-color), var(--second-color))',
+              color: 'white'
+            }}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save Changes"
+            )}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

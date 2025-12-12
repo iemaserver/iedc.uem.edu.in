@@ -32,7 +32,6 @@ export async function ensureUserProfile(
         await tx.teacherProfile.create({
           data: {
             userId,
-            employeeId: `EMP-${Date.now()}`,
             department: "Not Specified",
             designation: "Faculty",
             affiliation: "UEM",
@@ -117,7 +116,6 @@ export async function createUserWithProfile(data: {
       await tx.teacherProfile.create({
         data: {
           userId: user.id,
-          employeeId: `EMP-${Date.now()}`,
           department: "Not Specified",
           designation: "Faculty",
           affiliation: "UEM",

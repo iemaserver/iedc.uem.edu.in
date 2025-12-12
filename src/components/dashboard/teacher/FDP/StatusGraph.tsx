@@ -42,7 +42,7 @@ export function StatusGraph({ fdps, title = "Visibility Distribution", descripti
         {totalCount === 0 ? (
           <div className="flex items-center justify-center h-[200px] sm:h-[250px] lg:h-[160px] text-muted-foreground text-sm">No data available</div>
         ) : (
-          <ChartContainer config={chartConfig} className="w-full h-[200px] sm:h-[250px] lg:h-[160px] bg-gradient-to-br from-teal-50/80 to-cyan-50/80 dark:from-teal-950/40 dark:to-cyan-950/40 rounded-lg">
+          <ChartContainer config={chartConfig} className="w-full h-[200px] sm:h-[250px] lg:h-[160px] ">
             <PieChart width={300} height={300}>
               <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
               <Pie data={chartData} dataKey="count" nameKey="status" innerRadius="30%" outerRadius="100%" strokeWidth={5} label={(entry) => entry.count} labelLine={false} cx="50%" cy="50%" />

@@ -39,7 +39,7 @@ export default function AdminResearchPapersPage() {
             Manage all student research papers across the institution
           </p>
         </div>
-        <ResearchPapersTable />
+        <ResearchPapersTable papers={[]} />
       </div>
     </>
   );

@@ -283,9 +283,9 @@ export async function GET(req: NextRequest) {
           teacherInfo: {
             name: teacherProfile.user.name,
             email: teacherProfile.user.email,
-            employeeId: teacherProfile.employeeId,
             department: teacherProfile.department,
             designation: teacherProfile.designation,
+            affiliation: teacherProfile.affiliation,
           },
         });
 

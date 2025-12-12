@@ -92,47 +92,47 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   callbacks: {
     async signIn({ user, account, profile }) {
-      if (account?.provider === "google" || account?.provider === "credentials") {
-        try {
-          // Determine user role from FacultyUser table
-          const userRole = await determineUserRole(user.email!);
-
-          // Find the user
-          const dbUser = await prisma.user.findUnique({
-            where: { email: user.email! },
-          });
-
-          if (dbUser) {
-            // Update role if changed (but don't override ADMIN)
-            if (dbUser.role !== userRole && dbUser.role !== UserRole.ADMIN) {
-              await prisma.user.update({
-                where: { id: dbUser.id },
-                data: { role: userRole },
-              });
-            }
-
-            // Ensure appropriate profile exists
-            await ensureUserProfile(dbUser.id, userRole, user.email!);
-          }
-        } catch (error) {
-          console.error("Error in signIn callback:", error);
-          // Still allow sign-in even if profile creation fails
-          // Profile will be created on next attempt or can be handled separately
-        }
-      }
+      // Just return true, we'll handle profile creation in jwt callback
       return true;
     },
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user, trigger, account }) {
+      // When user first signs in, user object will be present
       if (user) {
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
         token.role = user.role;
         token.image = user.image;
+
+        // Determine correct role from FacultyUser table
+        const userRole = await determineUserRole(user.email!);
+        token.role = userRole;
+
+        // Find the user in database
+        const dbUser = await prisma.user.findUnique({
+          where: { email: user.email! },
+          include: {
+            studentProfile: true,
+            teacherProfile: true,
+          },
+        });
+
+        if (dbUser) {
+          // Update role if changed (but don't override ADMIN)
+          if (dbUser.role !== userRole && dbUser.role !== UserRole.ADMIN) {
+            await prisma.user.update({
+              where: { id: dbUser.id },
+              data: { role: userRole },
+            });
+          }
+
+          // Ensure appropriate profile exists (for both OAuth and credentials)
+          await ensureUserProfile(dbUser.id, userRole, user.email!);
+        }
       }
       
       // Re-check faculty role on each token refresh
-      if (token.email) {
+      if (token.email && !user) {
         const facultyUser = await prisma.facultyUser.findUnique({
           where: { email: token.email },
         });

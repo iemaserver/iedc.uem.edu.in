@@ -156,19 +156,7 @@ export function GrowthGraph({
       <CardFooter className="pt-2">
         <div className="flex w-full items-start gap-2 text-xs sm:text-sm">
           <div className="grid gap-1 sm:gap-2">
-            <div className="flex items-center gap-1 sm:gap-2 leading-none font-medium flex-wrap">
-              {trend.isPositive ? (
-                <>
-                  Trending up by {trend.value}% this month 
-                  <TrendingUp className="h-4 w-4 text-green-600" />
-                </>
-              ) : (
-                <>
-                  Trending down by {trend.value}% this month 
-                  <TrendingDown className="h-4 w-4 text-red-600" />
-                </>
-              )}
-            </div>
+            
             <div className="text-muted-foreground flex items-center gap-2 leading-none">
               Total: {totalCertifications} certifications
             </div>

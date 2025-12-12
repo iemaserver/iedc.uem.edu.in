@@ -4,31 +4,35 @@ import { useState, useEffect } from "react";
 
 import { StatusGraph } from "@/components/dashboard/teacher/patent/StatusGraph";
 import { GrowthGraph } from "@/components/dashboard/teacher/patent/GrowthGraph";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { PatentsTable } from "@/components/dashboard/teacher/patent/PatentsTable";
+import axios from "axios";
+import { fetchPatents } from "@/lib/api/teacherApi";
 
 export default function PatentsPage() {
   const [patents, setPatents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchPatents();
+    fetchPatent();
   }, []);
 
-  const fetchPatents = async () => {
+  const fetchPatent = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/teacher/patent");
-      if (response.ok) {
-        const result = await response.json();
-        setPatents(result.data || []);
-      } else {
-        toast.error("Failed to fetch patents");
-      }
+      const response = await fetchPatents({ all: true });
+      setPatents(response.data);
     } catch (error) {
       console.error("Failed to fetch patents:", error);
       toast.error("Failed to fetch patents");
@@ -39,27 +43,13 @@ export default function PatentsPage() {
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem className="hidden md:block">
-              <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator className="hidden md:block" />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Patents</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
-
       <div className="flex flex-1 flex-col gap-4 p-4 md:p-6 lg:p-8">
         <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-bold">Patent Applications</h1>
-            <p className="text-muted-foreground mt-2">Track and manage your patent applications and grants</p>
+            <p className="text-muted-foreground mt-2">
+              Track and manage your patent applications and grants
+            </p>
           </div>
 
           {isLoading ? (
@@ -68,11 +58,11 @@ export default function PatentsPage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-                <div className="lg:col-span-1">
+              <div className="flex flex-col lg:flex-row w-full gap-4">
+                <div className="w-full lg:w-1/3">
                   <StatusGraph patents={patents} />
                 </div>
-                <div className="lg:col-span-3">
+                <div className="w-full lg:w-2/3">
                   <GrowthGraph patents={patents} />
                 </div>
               </div>

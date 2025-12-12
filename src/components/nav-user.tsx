@@ -42,7 +42,7 @@ export function NavUser({
   const { isMobile } = useSidebar()
 
   return (
-    <SidebarMenu>
+    <SidebarMenu className="bg-[var(--third-color)] rounded-lg hover:bg-[var(--forth-color)]">
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

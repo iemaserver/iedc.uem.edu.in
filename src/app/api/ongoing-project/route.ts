@@ -14,8 +14,8 @@ const ongoingProjectSchema = z.object({
   keywords: z.array(z.string()).default([]),
   startDate: z.string().optional(),
   expectedEndDate: z.string().optional(),
-  advisorIds: z.array(z.string()).default([]),
-  memberIds: z.array(z.string()).default([]),
+  advisorIds: z.array(z.string()).min(1, "At least one advisor is required"),
+  memberIds: z.array(z.string()).min(1, "At least one team member is required"),
 });
 
 // GET - Fetch ongoing projects
@@ -49,7 +49,17 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "Student profile not found" }, { status: 404 });
       }
       
-      where.studentId = studentProfile.id;
+      // Show projects where student is owner OR a member
+      where.OR = [
+        { studentId: studentProfile.id },
+        {
+          members: {
+            some: {
+              memberId: session.user.id,
+            },
+          },
+        },
+      ];
     } else if (session.user.role === "TEACHER") {
       // Teachers can see projects they're advising
       where.advisors = {
@@ -169,6 +179,23 @@ export async function POST(req: NextRequest) {
       if (advisors.length !== validatedData.advisorIds.length) {
         return NextResponse.json(
           { error: "All advisors must be teachers" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Verify members are students
+    if (validatedData.memberIds.length > 0) {
+      const members = await prisma.user.findMany({
+        where: {
+          id: { in: validatedData.memberIds },
+          role: "STUDENT",
+        },
+      });
+
+      if (members.length !== validatedData.memberIds.length) {
+        return NextResponse.json(
+          { error: "All team members must be students" },
           { status: 400 }
         );
       }

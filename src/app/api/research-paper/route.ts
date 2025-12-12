@@ -46,7 +46,16 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "Student profile not found" }, { status: 404 });
       }
       
-      where.studentId = studentProfile.id;
+      where.OR = [
+        { studentId: studentProfile.id },
+        {
+          members: {
+            some: {
+              memberId: session.user.id,
+            },
+          },
+        },
+      ];
     } else if (session.user.role === "TEACHER") {
       // Teachers can see papers they're reviewing
       const teacherProfile = await prisma.teacherProfile.findUnique({

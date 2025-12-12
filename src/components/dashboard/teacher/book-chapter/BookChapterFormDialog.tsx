@@ -195,7 +195,7 @@ export function BookChapterFormDialog({ open, onOpenChange, bookChapter, onSucce
                   ) : (
                     teachers.filter((t) => !form.watch("authorIds").includes(t.id)).map((teacher) => (
                       <SelectItem key={teacher.id} value={teacher.id}>
-                        {teacher.user.name} ({teacher.employeeId})
+                        {teacher.user.name} - {teacher.department}
                       </SelectItem>
                     ))
                   )}

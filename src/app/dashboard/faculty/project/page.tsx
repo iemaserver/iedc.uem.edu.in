@@ -1,12 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { OngoingProjectsTable } from "@/components/dashboard/teacher/ongoing-project/OngoingProjectsTable";
 import { StatusGraph } from "@/components/dashboard/teacher/ongoing-project/StatusGraph";
 import { GrowthGraph } from "@/components/dashboard/teacher/ongoing-project/GrowthGraph";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
-import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { OngoingProjectsTable } from "@/components/dashboard/teacher/ongoing-project/OngoingProjectsTable";
 
 export default function FacultyProjectPage() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -28,43 +25,39 @@ export default function FacultyProjectPage() {
   };
 
   return (
-    <>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem className="hidden md:block">
-              <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator className="hidden md:block" />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Ongoing Projects</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
 
-      <div className="flex flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Ongoing Projects</h1>
-          <p className="text-sm md:text-base text-muted-foreground">Review and manage student projects</p>
-        </div>
-
-        {/* Graphs Row - Pie Chart (25%) and Growth Chart (75%) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          <div className="md:col-span-2 lg:col-span-1">
-            <StatusGraph data={projects} />
-          </div>
-          <div className="md:col-span-2 lg:col-span-3">
-            <GrowthGraph data={projects} />
-          </div>
-        </div>
-
-        {/* Table */}
-        <OngoingProjectsTable />
-      </div>
-    </>
+     <div className="flex flex-1 flex-col gap-6 p-4 ">
+           <div>
+               <h1 className="text-2xl md:text-4xl font-bold text-[var(--first-color)]">Ongoing Projects</h1>
+               <p className="text-sm md:text-base text-muted-foreground">Review and manage student ongoing projects</p>
+             </div>
+         <div className="w-full h-full min-w-0">
+           <div className="flex flex-col w-full h-full gap-4 min-w-0">
+             {/* Top section with two columns */}
+             <div className="flex flex-col lg:flex-row w-full gap-4">
+               <div className="w-full lg:w-1/3">
+                 <StatusGraph data={projects}/>
+               </div>
+               <div className="w-full lg:w-2/3">
+               <GrowthGraph data={projects} /></div>
+             </div>
+             
+             {/* Bottom section */}
+             {
+               projects.length === 0 ?(
+               <div className="flex items-center justify-center h-64">
+                 <p className="text-muted-foreground">No ongoing projects found.</p>
+               </div>
+               ):(
+               <div className="w-full flex-1 rounded-lg min-h-[300px] overflow-hidden min-w-0">
+               <OngoingProjectsTable projects={projects} />
+             </div>
+               )
+             }
+             
+           </div>
+         </div>
+         </div>
+  
   );
 }

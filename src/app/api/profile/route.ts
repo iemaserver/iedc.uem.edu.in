@@ -116,6 +116,55 @@ export async function GET(req: NextRequest) {
       const teacherProfile = await prisma.teacherProfile.findUnique({
         where: { userId },
         include: {
+          user: {
+            select: {
+              advisedOngoingProjects: {
+                select: {
+                  id: true,
+                  assignedAt: true,
+                  project: {
+                    select: {
+                      id: true,
+                      title: true,
+                      abstract: true,
+                      status: true,
+                      keywords: true,
+                      startDate: true,
+                      expectedEndDate: true,
+                      completedAt: true,
+                      createdAt: true,
+                      student: {
+                        select: {
+                          user: {
+                            select: {
+                              id: true,
+                              name: true,
+                              email: true,
+                              image: true,
+                            },
+                          },
+                        },
+                      },
+                      members: {
+                        include: {
+                          member: {
+                            select: {
+                              id: true,
+                              name: true,
+                              email: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+                orderBy: {
+                  assignedAt: "desc",
+                },
+              },
+            },
+          },
           _count: {
             select: {
               copyrights: true,
@@ -192,7 +241,7 @@ export async function GET(req: NextRequest) {
               conference: {
                 select: {
                   id: true,
-                  title: true,
+                  
                   conferenceName: true,
                   status: true,
                   conferenceStartDate: true,
@@ -213,9 +262,11 @@ export async function GET(req: NextRequest) {
                 select: {
                   id: true,
                   title: true,
-                
                   status: true,
-                
+                  isbnIssn: true,
+                  registrationFees: true,
+                  reimbursement: true,
+                  createdAt: true,
                   isPublic: true,
                 },
               },
@@ -226,6 +277,134 @@ export async function GET(req: NextRequest) {
               },
             },
             take: 5,
+          },
+          transactions: {
+            include: {
+              transaction: {
+                select: {
+                  id: true,
+                  title: true,
+                  transactionName: true,
+                  typeOfTransaction: true,
+                  indexOfTransaction: true,
+                  impactFactor: true,
+                  publisher: true,
+                  status: true,
+                  statusDate: true,
+                  createdAt: true,
+                  isPublic: true,
+                },
+              },
+            },
+            orderBy: {
+              transaction: {
+                statusDate: "desc",
+              },
+            },
+          },
+          grants: {
+            include: {
+              grant: {
+                select: {
+                  id: true,
+                  title: true,
+                  projectCode: true,
+                  grantAmount: true,
+                  durationMonths: true,
+                  status: true,
+                  grantedAt: true,
+                  appliedAt: true,
+                  createdAt: true,
+                  isPublic: true,
+                },
+              },
+            },
+            orderBy: {
+              grant: {
+                grantedAt: "desc",
+              },
+            },
+          },
+          fdps: {
+            include: {
+              fdp: {
+                select: {
+                  id: true,
+                  name: true,
+                  organizedBy: true,
+                  sponsoredBy: true,
+                  duration: true,
+                  startDate: true,
+                  endDate: true,
+                  createdAt: true,
+                  isPublic: true,
+                },
+              },
+            },
+            orderBy: {
+              fdp: {
+                startDate: "desc",
+              },
+            },
+          },
+          certifications: {
+            include: {
+              certification: {
+                select: {
+                  id: true,
+                  certificationName: true,
+                  offeredBy: true,
+                  completedAt: true,
+                  link: true,
+                  createdAt: true,
+                  isPublic: true,
+                },
+              },
+            },
+            orderBy: {
+              certification: {
+                completedAt: "desc",
+              },
+            },
+          },
+          reviewedPapers: {
+            select: {
+              id: true,
+              title: true,
+              abstract: true,
+              status: true,
+              keywords: true,
+              submittedAt: true,
+              approvedAt: true,
+              publishedAt: true,
+              createdAt: true,
+              student: {
+                select: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                      image: true,
+                    },
+                  },
+                },
+              },
+              members: {
+                include: {
+                  member: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                    },
+                  },
+                },
+              },
+            },
+            orderBy: {
+              createdAt: "desc",
+            },
           },
         },
       });
@@ -339,9 +518,7 @@ export async function PUT(req: NextRequest) {
           ...(studentProfile.department && { department: studentProfile.department }),
           ...(studentProfile.phoneNumber !== undefined && { phoneNumber: studentProfile.phoneNumber }),
           ...(studentProfile.address !== undefined && { address: studentProfile.address }),
-          ...(studentProfile.dateOfBirth && { dateOfBirth: new Date(studentProfile.dateOfBirth) }),
-          ...(studentProfile.guardianName !== undefined && { guardianName: studentProfile.guardianName }),
-          ...(studentProfile.guardianPhone !== undefined && { guardianPhone: studentProfile.guardianPhone }),
+          ...(studentProfile.bio !== undefined && { bio: studentProfile.bio }),
         },
       });
     } else if (userRole === "TEACHER" && body.teacherProfile) {
@@ -349,24 +526,35 @@ export async function PUT(req: NextRequest) {
       await prisma.teacherProfile.update({
         where: { userId },
         data: {
-          ...(teacherProfile.employeeId && { employeeId: teacherProfile.employeeId }),
           ...(teacherProfile.department && { department: teacherProfile.department }),
           ...(teacherProfile.designation && { designation: teacherProfile.designation }),
           ...(teacherProfile.affiliation && { affiliation: teacherProfile.affiliation }),
           ...(teacherProfile.officialEmail !== undefined && { officialEmail: teacherProfile.officialEmail }),
           ...(teacherProfile.phoneNumber !== undefined && { phoneNumber: teacherProfile.phoneNumber }),
           ...(teacherProfile.address !== undefined && { address: teacherProfile.address }),
+          ...(teacherProfile.bio !== undefined && { bio: teacherProfile.bio }),
           ...(teacherProfile.subjectOfInterest && { subjectOfInterest: teacherProfile.subjectOfInterest }),
           ...(teacherProfile.qualification !== undefined && { qualification: teacherProfile.qualification }),
-          ...(teacherProfile.experience !== undefined && { experience: parseInt(teacherProfile.experience) }),
-          ...(teacherProfile.isAvailableForGuidance !== undefined && { isAvailableForGuidance: teacherProfile.isAvailableForGuidance }),
         },
       });
     }
 
+    // Fetch updated user data for session refresh
+    const updatedUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        role: true,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       message: "Profile updated successfully",
+      user: updatedUser,
     });
   } catch (error) {
     console.error("Error updating profile:", error);

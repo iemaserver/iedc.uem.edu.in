@@ -30,6 +30,9 @@ import {
   Handshake,
   FlaskConical,
   Download,
+  Paperclip,
+  Car,
+  Clock,
 } from "lucide-react"
 // This is sample data.
 
@@ -45,8 +48,8 @@ export const DashboardItems = [
       { title: "Dashboard", url: "/dashboard", icon: IconDashboard },
       { title: "Upload Paper", url: "/dashboard/student/research-paper/upload", icon: Upload , access: ["STUDENT"]},
       { title: "Upload Project", url: "/dashboard/student/project/upload", icon: Upload , access: ["STUDENT"] },
-      { title: "My Projects", url: "/dashboard/student/projects", icon: Container, access: ["STUDENT"] },
-      { title: "Search a Paper", url: "/paper", icon: Search },
+      { title: "My Research Paper", url: "/dashboard/student/research-paper", icon: Paperclip, access: ["STUDENT"] },
+      { title: "My Ongoing Project", url: "/dashboard/student/ongoing-project", icon: Clock, access: ["STUDENT"] },
       { title: "My Profile", url: "/dashboard/profile", icon: UserIcon },
     ],
   },

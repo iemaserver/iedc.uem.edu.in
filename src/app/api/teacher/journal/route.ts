@@ -36,16 +36,112 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
-    const skip = (page - 1) * limit;
+    const all = searchParams.get("all") === "true";
+    
+    // Advanced filtering parameters
+    const title = searchParams.get("title");
+    const journalName = searchParams.get("journalName");
+    const typeOfJournal = searchParams.get("typeOfJournal");
+    const indexOfJournal = searchParams.get("indexOfJournal");
+    const publisher = searchParams.get("publisher");
+    const status = searchParams.get("status");
+    const isPublic = searchParams.get("isPublic");
+    
+    // Date range filters
+    const statusAfter = searchParams.get("statusAfter");
+    const statusBefore = searchParams.get("statusBefore");
+    const impactFactorAfter = searchParams.get("impactFactorAfter");
+    const impactFactorBefore = searchParams.get("impactFactorBefore");
+    const reimbursementAfter = searchParams.get("reimbursementAfter");
+    const reimbursementBefore = searchParams.get("reimbursementBefore");
+    const createdAfter = searchParams.get("createdAfter");
+    const createdBefore = searchParams.get("createdBefore");
+    const updatedAfter = searchParams.get("updatedAfter");
+    const updatedBefore = searchParams.get("updatedBefore");
+    
+    // Teacher name filter
+    const teacherName = searchParams.get("teacherName");
+    
+    // Sorting
+    const sortBy = searchParams.get("sortBy") || "createdAt";
+    const sortOrder = searchParams.get("sortOrder") || "desc";
 
-    const teacherProfile = await prisma.teacherProfile.findUnique({ where: { userId: session.user.id } });
+    const teacherProfile = await prisma.teacherProfile.findFirst({
+      where: { user: { email: session.user.email! } },
+    });
+
     if (!teacherProfile && session.user.role !== UserRole.ADMIN) {
       return NextResponse.json({ error: "Teacher profile not found" }, { status: 404 });
     }
 
-    const where = session.user.role === UserRole.ADMIN
+    // Build where clause
+    const where: any = session.user.role === UserRole.ADMIN
       ? {}
       : { authors: { some: { teacherId: teacherProfile!.id } } };
+
+    if (title) where.title = { contains: title, mode: "insensitive" };
+    if (journalName) where.journalName = { contains: journalName, mode: "insensitive" };
+    if (typeOfJournal) where.typeOfJournal = { contains: typeOfJournal, mode: "insensitive" };
+    if (indexOfJournal) where.indexOfJournal = { contains: indexOfJournal, mode: "insensitive" };
+    if (publisher) where.publisher = { contains: publisher, mode: "insensitive" };
+    if (status) where.status = status;
+    if (isPublic !== null) where.isPublic = isPublic === "true";
+    
+    if (statusAfter || statusBefore) {
+      where.statusDate = {
+        ...(statusAfter ? { gte: new Date(statusAfter) } : {}),
+        ...(statusBefore ? { lte: new Date(statusBefore) } : {}),
+      };
+    }
+    
+    if (impactFactorAfter || impactFactorBefore) {
+      where.impactFactorDate = {
+        ...(impactFactorAfter ? { gte: new Date(impactFactorAfter) } : {}),
+        ...(impactFactorBefore ? { lte: new Date(impactFactorBefore) } : {}),
+      };
+    }
+    
+    if (reimbursementAfter || reimbursementBefore) {
+      where.reimbursementDate = {
+        ...(reimbursementAfter ? { gte: new Date(reimbursementAfter) } : {}),
+        ...(reimbursementBefore ? { lte: new Date(reimbursementBefore) } : {}),
+      };
+    }
+    
+    if (createdAfter || createdBefore) {
+      where.createdAt = {
+        ...(createdAfter ? { gte: new Date(createdAfter) } : {}),
+        ...(createdBefore ? { lte: new Date(createdBefore) } : {}),
+      };
+    }
+    
+    if (updatedAfter || updatedBefore) {
+      where.updatedAt = {
+        ...(updatedAfter ? { gte: new Date(updatedAfter) } : {}),
+        ...(updatedBefore ? { lte: new Date(updatedBefore) } : {}),
+      };
+    }
+    
+    if (teacherName) {
+      where.authors = {
+        some: {
+          teacher: {
+            user: {
+              name: { contains: teacherName, mode: "insensitive" },
+            },
+          },
+        },
+      };
+    }
+
+    // Validate sortBy field
+    const validSortFields = [
+      "title", "journalName", "publisher", "status", "statusDate",
+      "impactFactor", "impactFactorDate", "reimbursementDate",
+      "createdAt", "updatedAt", "isPublic"
+    ];
+    const orderByField = validSortFields.includes(sortBy) ? sortBy : "createdAt";
+    const orderByDirection = sortOrder === "asc" ? "asc" : "desc";
 
     const [journals, total] = await Promise.all([
       prisma.journal.findMany({
@@ -53,14 +149,18 @@ export async function GET(req: NextRequest) {
         include: {
           authors: {
             include: {
-              teacher: { include: { user: { select: { id: true, name: true, email: true, role: true } } } },
+              teacher: {
+                include: {
+                  user: { select: { id: true, name: true, email: true, role: true, image: true } },
+                },
+              },
             },
             orderBy: { orderIndex: "asc" },
           },
         },
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: limit,
+        orderBy: { [orderByField]: orderByDirection },
+        skip: all ? undefined : (page - 1) * limit,
+        take: all ? undefined : limit,
       }),
       prisma.journal.count({ where }),
     ]);
@@ -122,28 +222,11 @@ export async function DELETE(req: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { searchParams } = new URL(req.url);
-    const idsParam = searchParams.get("ids");
-    if (!idsParam) return NextResponse.json({ error: "No IDs provided" }, { status: 400 });
+    const body = await req.json();
+    const { ids } = body;
 
-    const ids = idsParam.split(",").map(id => id.trim());
-    if (ids.length === 0) return NextResponse.json({ error: "No valid IDs" }, { status: 400 });
-
-    const teacherProfile = await prisma.teacherProfile.findUnique({ where: { userId: session.user.id } });
-    
-    if (session.user.role !== UserRole.ADMIN && teacherProfile) {
-      const journals = await prisma.journal.findMany({
-        where: { id: { in: ids }, authors: { some: { teacherId: teacherProfile.id } } },
-        select: { id: true }
-      });
-      const validIds = journals.map(j => j.id);
-      if (validIds.length === 0) return NextResponse.json({ error: "Unauthorized to delete these journals" }, { status: 403 });
-      
-      await prisma.$transaction(async (tx) => {
-        await tx.journalAuthor.deleteMany({ where: { journalId: { in: validIds } } });
-        await tx.journal.deleteMany({ where: { id: { in: validIds } } });
-      });
-      return NextResponse.json({ message: `Deleted ${validIds.length} journals`, count: validIds.length }, { status: 200 });
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ error: "Invalid ids array" }, { status: 400 });
     }
 
     await prisma.$transaction(async (tx) => {
@@ -151,7 +234,7 @@ export async function DELETE(req: NextRequest) {
       await tx.journal.deleteMany({ where: { id: { in: ids } } });
     });
 
-    return NextResponse.json({ message: `Deleted ${ids.length} journals`, count: ids.length }, { status: 200 });
+    return NextResponse.json({ message: "Deleted", count: ids.length });
   } catch (error) {
     console.error("Bulk delete error:", error);
     return NextResponse.json({ error: "Failed to delete journals" }, { status: 500 });

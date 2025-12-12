@@ -12,10 +12,9 @@ const updateSchema = z.object({
   officialEmail: z.string().email().optional(),
   phoneNumber: z.string().optional(),
   address: z.string().optional(),
+  bio: z.string().optional(),
   subjectOfInterest: z.array(z.string()).optional(),
   qualification: z.string().optional(),
-  experience: z.number().int().min(0).optional(),
-  isAvailableForGuidance: z.boolean().optional(),
 });
 
 // GET: Fetch a particular teacher's profile by ID
@@ -108,7 +107,7 @@ export async function GET(
             conference: {
               select: {
                 id: true,
-                title: true,
+              
                 conferenceName: true,
                 conferenceStartDate: true,
                 location: true,
