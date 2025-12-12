@@ -20,10 +20,14 @@ jobs:
       - name: Cache dependencies
         uses: actions/cache@v4
         with:
+          # See here for caching with `yarn`: https://github.com/actions/cache/blob/main/examples.md#node---yarn
+          # Or you can leverage caching with `actions/setup-node`: https://github.com/actions/setup-node
           path: |
             ~/.npm
             ${{ github.workspace }}/.next/cache
+          # Generate a new cache whenever packages or source files change.
           key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx') }}
+          # If source files changed but packages didn't, rebuild from a prior cache.
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
 
@@ -34,35 +38,19 @@ jobs:
         run: npx prisma generate && npm run build
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+         
           NEXT_PUBLIC_APPWRITE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_APPWRITE_PROJECT_ID }}
           NEXT_PUBLIC_APPWRITE_PUBLIC_ENDPOINT: ${{ secrets.NEXT_PUBLIC_APPWRITE_PUBLIC_ENDPOINT }}
           NEXT_PUBLIC_APPWRITE_BUCKET_ID: ${{ secrets.NEXT_PUBLIC_APPWRITE_BUCKET_ID }}
 
       - name: Enable Firebase experiments
         run: npx firebase-tools@latest experiments:enable webframeworks
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools
-
-      # ✅ Add Firebase env step before deployment
-      - name: Set Firebase environment variables
-        run: |
-          firebase functions:config:set \
-            nextauth.database_url="${{ secrets.DATABASE_URL }}" \
-            nextauth.google_client_id="${{ secrets.GOOGLE_CLIENT_ID }}" \
-            nextauth.google_client_secret="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
-            nextauth.nextauth_url="${{ secrets.NEXTAUTH_URL }}" \
-            nextauth.nextauth_secret="${{ secrets.NEXTAUTH_SECRET }}" \
-            nextauth.resend_api_key="${{ secrets.RESEND_API_KEY }}" \
-            nextauth.appwrite_project_id="${{ secrets.NEXT_PUBLIC_APPWRITE_PROJECT_ID }}" \
-            nextauth.appwrite_public_endpoint="${{ secrets.NEXT_PUBLIC_APPWRITE_PUBLIC_ENDPOINT }}" \
-            nextauth.appwrite_bucket_id="${{ secrets.NEXT_PUBLIC_APPWRITE_BUCKET_ID }}"
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
       - name: Deploy to Firebase
         uses: FirebaseExtended/action-hosting-deploy@v0
@@ -71,3 +59,14 @@ jobs:
           firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
           projectId: "${{ secrets.FIREBASE_PROJECT_ID }}"
           channelId: live
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+
+          NEXT_PUBLIC_APPWRITE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_APPWRITE_PROJECT_ID }}
+          NEXT_PUBLIC_APPWRITE_PUBLIC_ENDPOINT: ${{ secrets.NEXT_PUBLIC_APPWRITE_PUBLIC_ENDPOINT }}
+          NEXT_PUBLIC_APPWRITE_BUCKET_ID: ${{ secrets.NEXT_PUBLIC_APPWRITE_BUCKET_ID }}
