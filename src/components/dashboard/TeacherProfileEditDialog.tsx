@@ -35,11 +35,11 @@ const teacherProfileSchema = z.object({
   department: z.string().min(1, "Department is required"),
   designation: z.string().min(1, "Designation is required"),
   affiliation: z.string().min(1, "Affiliation is required"),
-  officialEmail: z.string().email().optional().or(z.literal("")),
+
   phoneNumber: z.string().optional(),
   address: z.string().optional(),
   bio: z.string().optional(),
-  qualification: z.string().optional(),
+ 
   subjectOfInterest: z.array(z.string()),
 });
 
@@ -71,11 +71,11 @@ export function TeacherProfileEditDialog({
       department: profile?.teacherProfile?.department || "",
       designation: profile?.teacherProfile?.designation || "",
       affiliation: profile?.teacherProfile?.affiliation || "",
-      officialEmail: profile?.teacherProfile?.officialEmail || "",
+     
       phoneNumber: profile?.teacherProfile?.phoneNumber || "",
       address: profile?.teacherProfile?.address || "",
       bio: profile?.teacherProfile?.bio || "",
-      qualification: profile?.teacherProfile?.qualification || "",
+   
       subjectOfInterest: profile?.teacherProfile?.subjectOfInterest || [],
     },
   });
@@ -151,11 +151,11 @@ export function TeacherProfileEditDialog({
           department: data.department,
           designation: data.designation,
           affiliation: data.affiliation,
-          officialEmail: data.officialEmail || null,
+        
           phoneNumber: data.phoneNumber || null,
           address: data.address || null,
           bio: data.bio || null,
-          qualification: data.qualification || null,
+         
           subjectOfInterest: data.subjectOfInterest,
         },
       };
@@ -364,20 +364,7 @@ export function TeacherProfileEditDialog({
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="qualification"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-semibold">Highest Qualification</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="e.g., Ph.D. in Computer Science" className="h-11 border-2 focus:border-opacity-50 transition-all" style={{ borderColor: 'var(--third-color)' }} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
+          
             <FormField
               control={form.control}
               name="bio"
@@ -412,19 +399,7 @@ export function TeacherProfileEditDialog({
 
               <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="officialEmail"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-semibold">Official Email</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="email" placeholder="official@university.edu" className="h-11 border-2 focus:border-opacity-50 transition-all" style={{ borderColor: 'var(--third-color)' }} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+               
 
               <FormField
                 control={form.control}
@@ -469,7 +444,7 @@ export function TeacherProfileEditDialog({
               <div className="flex items-center gap-2 mb-4 pb-2 border-b" style={{ borderColor: 'var(--forth-color)' }}>
                 <div className="h-2 w-2 rounded-full" style={{ background: 'var(--first-color)' }}></div>
                 <h3 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--first-color)' }}>
-                  Academic Qualifications & Interests
+                   Interests
                 </h3>
               </div>
 

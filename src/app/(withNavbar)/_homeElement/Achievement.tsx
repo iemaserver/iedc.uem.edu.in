@@ -47,16 +47,15 @@ const AchievementPage = ({ achievements }: { achievements: Achievement[] }) => {
                   <div className="flex items-center justify-between text-sm text-gray-300">
                     {
                       /* Description with truncation */
-                      achievement.description &&
-                      (
+                      achievement.description && (
                         <p className="line-clamp-2">
-                      {achievement.description?.length > 100
-                        ? `${achievement.description?.slice(0, 100)}...`
-                        : achievement.description}
-                    </p>
+                          {achievement.description?.length > 100
+                            ? `${achievement.description?.slice(0, 100)}...`
+                            : achievement.description}
+                        </p>
                       )
                     }
-                    
+
                     {achievement.link && (
                       <a
                         href={achievement.link}
@@ -69,19 +68,12 @@ const AchievementPage = ({ achievements }: { achievements: Achievement[] }) => {
                   </div>
 
                   {/* Date */}
-                  {
-                    achievement.achievedAt &&
-                    (
-                      <div className="text-lg text-gray-400 flex items-center gap-1">
-                    <CalendarDays className="w-3 h-3" />
-                    {format(
-                      new Date(achievement.achievedAt),
-                      "dd MMM yyyy"
-                    )}
-                  </div>
-                    )
-                  }
-                  
+                  {achievement.achievedAt && (
+                    <div className="text-lg text-gray-400 flex items-center gap-1">
+                      <CalendarDays className="w-3 h-3" />
+                      {format(new Date(achievement.achievedAt), "dd MMM yyyy")}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

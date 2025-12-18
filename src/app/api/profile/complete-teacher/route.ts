@@ -8,12 +8,10 @@ const teacherProfileSchema = z.object({
   department: z.string().min(1, "Department is required"),
   designation: z.string().min(1, "Designation is required"),
   affiliation: z.string().min(1, "Affiliation is required"),
-  officialEmail: z.string().email().optional(),
   phoneNumber: z.string().optional(),
   address: z.string().optional(),
   bio: z.string().optional(),
   subjectOfInterest: z.array(z.string()),
-  qualification: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {

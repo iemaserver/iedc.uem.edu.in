@@ -506,18 +506,7 @@ export default function TeacherProfilePage() {
                             </div>
                           </div>
 
-                          {teacher?.officialEmail && (
-                            <div className="flex items-center gap-3 p-3 rounded-xl transition-all hover:shadow-md" style={{ background: 'var(--forth-color)' }}>
-                              <div className="p-2 rounded-lg" style={{ background: 'linear-gradient(to bottom right, var(--second-color), var(--third-color))' }}>
-                                <Mail className="h-4 w-4 text-white" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs text-muted-foreground font-medium">Official Email</p>
-                                <p className="text-sm font-semibold truncate" style={{ color: 'var(--first-color)' }}>{teacher.officialEmail}</p>
-                              </div>
-                            </div>
-                          )}
-
+                         
                           {teacher?.phoneNumber && (
                             <div className="flex items-center gap-3 p-3 rounded-xl transition-all hover:shadow-md" style={{ background: 'var(--forth-color)' }}>
                               <div className="p-2 rounded-lg" style={{ background: 'linear-gradient(to bottom right, var(--second-color), var(--third-color))' }}>
@@ -692,20 +681,7 @@ export default function TeacherProfilePage() {
                   </CardHeader>
                   <CardContent className="p-6 space-y-4">
                     <div className="space-y-3">
-                      {teacher?.qualification && (
-                        <div className="p-3 rounded-xl border-l-4" style={{ 
-                          background: 'var(--forth-color)',
-                          borderColor: 'var(--second-color)'
-                        }}>
-                          <div className="flex items-start gap-2">
-                            <GraduationCap className="h-4 w-4 mt-0.5" style={{ color: 'var(--first-color)' }} />
-                            <div className="flex-1">
-                              <p className="text-xs text-muted-foreground font-medium mb-1">Highest Qualification</p>
-                              <p className="font-bold text-lg" style={{ color: 'var(--first-color)' }}>{teacher.qualification}</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                      
                       
                       {teacher?.department && (
                         <div className="p-3 rounded-xl border-l-4" style={{ 

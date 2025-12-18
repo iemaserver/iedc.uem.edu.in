@@ -35,7 +35,7 @@ export async function ensureUserProfile(
             department: "Not Specified",
             designation: "Faculty",
             affiliation: "UEM",
-            officialEmail: email,
+           
           },
         });
         console.log(`✅ Teacher profile created for user: ${userId}`);
@@ -45,7 +45,7 @@ export async function ensureUserProfile(
           data: {
             userId,
             rollNumber: `ROLL-${Date.now()}`,
-            batch: new Date().getFullYear().toString(),
+            enrollmentNumber: `ENROLL-${Date.now()}`,
             year: 1,
             section: "A",
             department: "Not Specified",
@@ -119,7 +119,7 @@ export async function createUserWithProfile(data: {
           department: "Not Specified",
           designation: "Faculty",
           affiliation: "UEM",
-          officialEmail: data.email,
+         
         },
       });
     } else if (data.role === UserRole.STUDENT) {
@@ -127,7 +127,7 @@ export async function createUserWithProfile(data: {
         data: {
           userId: user.id,
           rollNumber: `ROLL-${Date.now()}`,
-          batch: new Date().getFullYear().toString(),
+          enrollmentNumber: `ENROLL-${Date.now()}`,
           year: 1,
           section: "A",
           department: "Not Specified",

@@ -24,7 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             name: true,
             email: true,
             role: true,
-            isActive: true,
+           
             image: true,
             createdAt: true,
           },

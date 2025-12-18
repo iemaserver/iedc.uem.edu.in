@@ -15,12 +15,12 @@ interface TeacherProfileData {
   department: string;
   designation: string;
   affiliation: string;
-  officialEmail?: string;
+ 
   phoneNumber?: string;
   address?: string;
   bio?: string;
   subjectOfInterest: string[];
-  qualification?: string;
+
 }
 
 const DEPARTMENTS = [
@@ -50,12 +50,12 @@ export function TeacherProfileForm({ userId }: { userId: string }) {
     department: "",
     designation: "",
     affiliation: "UEM",
-    officialEmail: "",
+  
     phoneNumber: "",
     address: "",
     bio: "",
     subjectOfInterest: [],
-    qualification: "",
+    
   });
   const [currentInterest, setCurrentInterest] = useState("");
 
@@ -184,17 +184,7 @@ export function TeacherProfileForm({ userId }: { userId: string }) {
                 </Select>
               </div>
 
-              <div>
-                <Label htmlFor="qualification" className="text-white">Highest Qualification</Label>
-                <Input
-                  id="qualification"
-                  type="text"
-                  placeholder="e.g., Ph.D. in Computer Science"
-                  value={formData.qualification}
-                  onChange={(e) => setFormData({ ...formData, qualification: e.target.value })}
-                  className="mt-1 bg-white/10 border-white/20 text-white placeholder:text-white/50"
-                />
-              </div>
+             
             </div>
           </motion.div>
         )}
@@ -215,17 +205,7 @@ export function TeacherProfileForm({ userId }: { userId: string }) {
             </div>
 
             <div className="space-y-4">
-              <div>
-                <Label htmlFor="officialEmail" className="text-white">Official Email</Label>
-                <Input
-                  id="officialEmail"
-                  type="email"
-                  placeholder="name@university.edu"
-                  value={formData.officialEmail}
-                  onChange={(e) => setFormData({ ...formData, officialEmail: e.target.value })}
-                  className="mt-1 bg-white/10 border-white/20 text-white placeholder:text-white/50"
-                />
-              </div>
+             
 
               <div>
                 <Label htmlFor="phoneNumber" className="text-white">Phone Number</Label>
@@ -351,21 +331,10 @@ export function TeacherProfileForm({ userId }: { userId: string }) {
                   <p className="text-[var(--forth-color)] text-sm">Designation</p>
                   <p className="text-white font-semibold">{formData.designation}</p>
                 </div>
-                {formData.qualification && (
-                  <div className="col-span-2">
-                    <p className="text-[var(--forth-color)] text-sm">Qualification</p>
-                    <p className="text-white font-semibold">{formData.qualification}</p>
-                  </div>
-                )}
+             
               </div>
 
-              {formData.officialEmail && (
-                <div>
-                  <p className="text-[var(--forth-color)] text-sm">Official Email</p>
-                  <p className="text-white">{formData.officialEmail}</p>
-                </div>
-              )}
-
+             
               {formData.phoneNumber && (
                 <div>
                   <p className="text-[var(--forth-color)] text-sm">Phone Number</p>

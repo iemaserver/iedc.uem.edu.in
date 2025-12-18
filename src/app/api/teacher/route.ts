@@ -19,11 +19,7 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get("search");
 
     // Build where clause
-    const where: any = {
-      user: {
-        isActive: true,
-      },
-    };
+    const where: any = {};
 
     if (department) {
       where.department = department;

@@ -42,7 +42,7 @@ export async function GET(
             email: true,
             image: true,
             role: true,
-            isActive: true,
+           
             createdAt: true,
             updatedAt: true,
           },
@@ -112,9 +112,7 @@ export async function GET(
       return NextResponse.json({ error: "Student profile not found" }, { status: 404 });
     }
 
-    if (!studentProfile.user.isActive) {
-      return NextResponse.json({ error: "Student profile is inactive" }, { status: 403 });
-    }
+   
 
     // Hide sensitive data for non-owners
     if (!showPrivateData) {
@@ -176,7 +174,7 @@ export async function PATCH(
             email: true,
             image: true,
             role: true,
-            isActive: true,
+            
           },
         },
       },
