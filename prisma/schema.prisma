@@ -37,7 +37,6 @@ enum SubmissionStatus {
 
 enum AccountProvider {
   GOOGLE
-  GITHUB
   CREDENTIALS
 }
 
@@ -104,7 +103,6 @@ model User {
   name          String
   image         String?
   role          UserRole  @default(STUDENT)
-  isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -136,7 +134,7 @@ model StudentProfile {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   rollNumber String   @unique
-  batch      String
+  enrollmentNumber String @unique
   year       Int
   section    String
   department String
@@ -164,13 +162,11 @@ model TeacherProfile {
   department        String
   designation       String
   affiliation       String
-  officialEmail     String?  @unique
   
   phoneNumber       String?
   address           String?
   bio               String?
   subjectOfInterest String[]
-  qualification     String?
   
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

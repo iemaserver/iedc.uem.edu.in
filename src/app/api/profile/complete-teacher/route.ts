@@ -2,113 +2,82 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { z } from "zod";
+
+const teacherProfileSchema = z.object({
+  department: z.string().min(1, "Department is required"),
+  designation: z.string().min(1, "Designation is required"),
+  affiliation: z.string().min(1, "Affiliation is required"),
+  officialEmail: z.string().email().optional(),
+  phoneNumber: z.string().optional(),
+  address: z.string().optional(),
+  bio: z.string().optional(),
+  subjectOfInterest: z.array(z.string()),
+  qualification: z.string().optional(),
+});
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify user has TEACHER role
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-    });
-
-    if (!user || user.role !== "TEACHER") {
+    if (session.user.role !== "TEACHER") {
       return NextResponse.json(
-        { error: "Only teachers can complete this profile" },
+        { error: "Only teachers can create teacher profiles" },
         { status: 403 }
       );
     }
 
     const body = await req.json();
-    const {
-      department,
-      designation,
-      qualification,
-      affiliation,
-      officialEmail,
-      phoneNumber,
-      address,
-      bio,
-      subjectOfInterest,
-    } = body;
+    const parsed = teacherProfileSchema.safeParse(body);
 
-    // Validate required fields
-    if (!department || !designation || !qualification) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Department, designation, and qualification are required" },
+        { error: parsed.error.flatten().fieldErrors },
         { status: 400 }
       );
     }
 
+    const data = parsed.data;
+
     // Check if profile already exists
     const existingProfile = await prisma.teacherProfile.findUnique({
-      where: { userId: user.id },
+      where: { userId: session.user.id },
     });
 
     if (existingProfile) {
-      // Update existing profile
-      const updatedProfile = await prisma.teacherProfile.update({
-        where: { userId: user.id },
-        data: {
-          department,
-          designation,
-          qualification,
-          affiliation: affiliation || null,
-          officialEmail: officialEmail || null,
-          phoneNumber: phoneNumber || null,
-          address: address || null,
-          bio: bio || null,
-          subjectOfInterest: subjectOfInterest || [],
-        },
-      });
-
       return NextResponse.json(
-        {
-          success: true,
-          message: "Teacher profile updated successfully",
-          profile: updatedProfile,
-          redirect: "/dashboard"
-        },
-        { status: 200 }
-      );
-    } else {
-      // Create new profile
-      const newProfile = await prisma.teacherProfile.create({
-        data: {
-          userId: user.id,
-          department,
-          designation,
-          qualification,
-          affiliation: affiliation || null,
-          officialEmail: officialEmail || null,
-          phoneNumber: phoneNumber || null,
-          address: address || null,
-          bio: bio || null,
-          subjectOfInterest: subjectOfInterest || [],
-        },
-      });
-
-      return NextResponse.json(
-        {
-          success: true,
-          message: "Teacher profile created successfully",
-          profile: newProfile,
-          redirect: "/dashboard"
-        },
-        { status: 201 }
+        { error: "Profile already exists" },
+        { status: 400 }
       );
     }
-  } catch (error: any) {
-    console.error("Error completing teacher profile:", error);
+
+    // Create teacher profile
+    const profile = await prisma.teacherProfile.create({
+      data: {
+        userId: session.user.id,
+        department: data.department,
+        designation: data.designation,
+        affiliation: data.affiliation,
+        phoneNumber: data.phoneNumber,
+        address: data.address,
+        bio: data.bio,
+        subjectOfInterest: data.subjectOfInterest,
+      },
+    });
+
     return NextResponse.json(
-      { error: error.message || "Failed to complete teacher profile" },
+      { message: "Profile created successfully", profile },
+      { status: 201 }
+    );
+  } catch (error: any) {
+    console.error("Create teacher profile error:", error);
+
+    return NextResponse.json(
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

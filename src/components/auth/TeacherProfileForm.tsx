@@ -59,7 +59,7 @@ export function TeacherProfileForm({ userId }: { userId: string }) {
   });
   const [currentInterest, setCurrentInterest] = useState("");
 
-  const totalSteps = 3;
+  const totalSteps = 4; // Added preview step
 
   const handleAddInterest = () => {
     if (currentInterest.trim() && !formData.subjectOfInterest.includes(currentInterest.trim())) {
@@ -322,6 +322,86 @@ export function TeacherProfileForm({ userId }: { userId: string }) {
                   </div>
                 )}
               </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Step 4: Preview */}
+        {step === 4 && (
+          <motion.div
+            key="step4"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-6"
+          >
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-2">Review Your Profile</h2>
+              <p className="text-[var(--forth-color)] text-sm">Please review your information before submitting</p>
+            </div>
+
+            <div className="bg-white/10 rounded-lg p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[var(--forth-color)] text-sm">Department</p>
+                  <p className="text-white font-semibold">{formData.department}</p>
+                </div>
+                <div>
+                  <p className="text-[var(--forth-color)] text-sm">Designation</p>
+                  <p className="text-white font-semibold">{formData.designation}</p>
+                </div>
+                {formData.qualification && (
+                  <div className="col-span-2">
+                    <p className="text-[var(--forth-color)] text-sm">Qualification</p>
+                    <p className="text-white font-semibold">{formData.qualification}</p>
+                  </div>
+                )}
+              </div>
+
+              {formData.officialEmail && (
+                <div>
+                  <p className="text-[var(--forth-color)] text-sm">Official Email</p>
+                  <p className="text-white">{formData.officialEmail}</p>
+                </div>
+              )}
+
+              {formData.phoneNumber && (
+                <div>
+                  <p className="text-[var(--forth-color)] text-sm">Phone Number</p>
+                  <p className="text-white">{formData.phoneNumber}</p>
+                </div>
+              )}
+
+              {formData.address && (
+                <div>
+                  <p className="text-[var(--forth-color)] text-sm">Address</p>
+                  <p className="text-white">{formData.address}</p>
+                </div>
+              )}
+
+              {formData.subjectOfInterest.length > 0 && (
+                <div>
+                  <p className="text-[var(--forth-color)] text-sm mb-2">Subjects of Interest</p>
+                  <div className="flex flex-wrap gap-2">
+                    {formData.subjectOfInterest.map((interest) => (
+                      <div
+                        key={interest}
+                        className="px-3 py-1 bg-[var(--third-color)]/20 border border-[var(--third-color)]/40 rounded-full text-sm text-white"
+                      >
+                        {interest}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {formData.bio && (
+                <div>
+                  <p className="text-[var(--forth-color)] text-sm">Bio</p>
+                  <p className="text-white">{formData.bio}</p>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

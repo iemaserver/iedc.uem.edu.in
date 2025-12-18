@@ -50,7 +50,7 @@ export function StudentProfileForm({ userId }: { userId: string }) {
     bio: "",
   });
 
-  const totalSteps = 2;
+  const totalSteps = 3; // Added preview step
 
   const handleNext = () => {
     if (step < totalSteps) {
@@ -255,6 +255,65 @@ export function StudentProfileForm({ userId }: { userId: string }) {
                   rows={4}
                 />
               </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Step 3: Preview */}
+        {step === 3 && (
+          <motion.div
+            key="step3"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-6"
+          >
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-2">Review Your Profile</h2>
+              <p className="text-[var(--forth-color)] text-sm">Please review your information before submitting</p>
+            </div>
+
+            <div className="bg-white/10 rounded-lg p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[var(--forth-color)] text-sm">Roll Number</p>
+                  <p className="text-white font-semibold">{formData.rollNumber}</p>
+                </div>
+                <div>
+                  <p className="text-[var(--forth-color)] text-sm">Department</p>
+                  <p className="text-white font-semibold">{formData.department}</p>
+                </div>
+                <div>
+                  <p className="text-[var(--forth-color)] text-sm">Year</p>
+                  <p className="text-white font-semibold">{formData.year}</p>
+                </div>
+                <div>
+                  <p className="text-[var(--forth-color)] text-sm">Section</p>
+                  <p className="text-white font-semibold">{formData.section}</p>
+                </div>
+              </div>
+
+              {formData.phoneNumber && (
+                <div>
+                  <p className="text-[var(--forth-color)] text-sm">Phone Number</p>
+                  <p className="text-white font-semibold">{formData.phoneNumber}</p>
+                </div>
+              )}
+
+              {formData.address && (
+                <div>
+                  <p className="text-[var(--forth-color)] text-sm">Address</p>
+                  <p className="text-white">{formData.address}</p>
+                </div>
+              )}
+
+              {formData.bio && (
+                <div>
+                  <p className="text-[var(--forth-color)] text-sm">Bio</p>
+                  <p className="text-white">{formData.bio}</p>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

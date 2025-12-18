@@ -29,38 +29,35 @@ const quintessential = Quintessential({
   variable: "--quintessential-font",
 });
 
-const verifySchema = z.object({
-  token: z.string().min(6, "Verification code must be 6 digits"),
+const forgotPasswordSchema = z.object({
+  email: z.string().email("Invalid email address"),
 });
 
-type VerifyFormValues = z.infer<typeof verifySchema>;
+type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>;
 
-const VerifyPage = () => {
+const ForgotPassword = () => {
   const [isLoading, setIsLoading] = React.useState(false);
-  const [verifySuccess, setVerifySuccess] = React.useState(false);
+  const [emailSent, setEmailSent] = React.useState(false);
   const router = useRouter();
 
-  const form = useForm<VerifyFormValues>({
-    resolver: zodResolver(verifySchema),
+  const form = useForm<ForgotPasswordFormValues>({
+    resolver: zodResolver(forgotPasswordSchema),
     defaultValues: {
-      token: "",
+      email: "",
     },
   });
 
-  const onSubmit = async (data: VerifyFormValues) => {
+  const onSubmit = async (data: ForgotPasswordFormValues) => {
     setIsLoading(true);
     try {
-      const response = await axios.post("/api/auth/verify-email", {
-        token: data.token.trim(),
+      const response = await axios.post("/api/auth/forgot-password", {
+        email: data.email,
       });
 
-      toast.success("Email verified successfully!");
-      setVerifySuccess(true);
-      setTimeout(() => {
-        router.push("/complete-profile");
-      }, 2000);
+      toast.success("Password reset email sent! Check your inbox.");
+      setEmailSent(true);
     } catch (error: any) {
-      toast.error(error.response?.data?.error || "Verification failed!");
+      toast.error(error.response?.data?.error || "Something went wrong!");
     } finally {
       setIsLoading(false);
     }
@@ -74,7 +71,7 @@ const VerifyPage = () => {
           <div className="relative h-full w-full rounded-2xl overflow-hidden shadow-inner">
             <Image
               src="/bg-signup.jpg"
-              alt="Verify Email"
+              alt="Reset Password"
               fill
               className="object-cover transition-transform duration-700 hover:scale-105"
             />
@@ -84,14 +81,14 @@ const VerifyPage = () => {
               className={`${quintessential.className} absolute bottom-12 left-8 right-8 text-white`}
             >
               <h2 className="text-4xl font-bold mb-2">
-                Verify Your
+                Reset Your
                 <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                   {" "}
-                  Email
+                  Password
                 </span>
               </h2>
               <p className="text-lg opacity-90 leading-relaxed">
-                We've sent a verification code to your email address.
+                Don't worry! We'll help you get back into your account.
               </p>
             </div>
           </div>
@@ -128,18 +125,18 @@ const VerifyPage = () => {
               </span>
             </div>
             <Separator className="mb-3" />
-
+            
             {/* Header & Logo */}
             <div className="flex flex-col items-center mb-8">
               <h1 className="text-3xl font-black text-slate-900">
-                Verify Your Email
+                Forgot Password?
               </h1>
               <p className="text-slate-500 text-sm mt-1 text-center">
-                Enter the 6-digit code we sent to your email address.
+                Enter your email and we'll send you a link to reset your password.
               </p>
             </div>
 
-            {!verifySuccess ? (
+            {!emailSent ? (
               <Form {...form}>
                 <form
                   onSubmit={form.handleSubmit(onSubmit)}
@@ -147,16 +144,15 @@ const VerifyPage = () => {
                 >
                   <FormField
                     control={form.control}
-                    name="token"
+                    name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Verification Code</FormLabel>
+                        <FormLabel>Email</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="123456"
-                            type="text"
-                            maxLength={6}
-                            className="bg-white/50 text-center text-2xl tracking-widest"
+                            placeholder="name@example.com"
+                            type="email"
+                            className="bg-white/50"
                             {...field}
                           />
                         </FormControl>
@@ -173,18 +169,17 @@ const VerifyPage = () => {
                     {isLoading ? (
                       <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
                     ) : null}
-                    Verify Email
+                    Send Reset Link
                   </Button>
 
                   <div className="text-center text-sm text-slate-600">
-                    Didn't receive the code?{" "}
-                    <button
-                      type="button"
+                    Remember your password?{" "}
+                    <Link
+                      href={"/signin"}
                       className="text-blue-600 font-semibold hover:underline"
-                      onClick={() => toast.success("Resend feature coming soon!")}
                     >
-                      Resend
-                    </button>
+                      Sign In
+                    </Link>
                   </div>
                 </form>
               </Form>
@@ -209,12 +204,19 @@ const VerifyPage = () => {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-slate-900 mb-2">
-                    Email Verified!
+                    Check Your Email
                   </h3>
                   <p className="text-slate-600 text-sm">
-                    Your email has been successfully verified. Redirecting to complete your profile...
+                    We've sent a password reset link to your email address. Please check your inbox and follow the instructions.
                   </p>
                 </div>
+                <Button
+                  onClick={() => router.push("/signin")}
+                  variant="outline"
+                  className="w-full"
+                >
+                  Back to Sign In
+                </Button>
               </div>
             )}
           </div>
@@ -224,4 +226,4 @@ const VerifyPage = () => {
   );
 };
 
-export default VerifyPage;
+export default ForgotPassword;

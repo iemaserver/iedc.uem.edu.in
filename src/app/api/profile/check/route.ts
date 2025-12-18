@@ -7,47 +7,38 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const userId = session.user.id;
+
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userId },
       include: {
-        teacherProfile: true,
         studentProfile: true,
+        teacherProfile: true,
       },
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Check if profile exists based on role
-    let hasProfile = false;
-    
-    if (user.role === "TEACHER") {
-      hasProfile = !!user.teacherProfile;
-    } else if (user.role === "STUDENT") {
-      hasProfile = !!user.studentProfile;
-    } else if (user.role === "ADMIN") {
-      hasProfile = true; // Admins don't need profiles
-    }
+    const hasProfile =
+      user.role === "ADMIN" ||
+      (user.role === "STUDENT" && user.studentProfile !== null) ||
+      (user.role === "TEACHER" && user.teacherProfile !== null);
 
     return NextResponse.json({
       hasProfile,
+      emailVerified: user.emailVerified !== null,
       role: user.role,
     });
   } catch (error) {
-    console.error("Error checking profile:", error);
+    console.error("Profile check error:", error);
     return NextResponse.json(
-      { error: "Failed to check profile status" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

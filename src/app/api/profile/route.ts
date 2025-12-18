@@ -7,7 +7,7 @@ import prisma from "@/lib/prisma";
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -241,7 +241,7 @@ export async function GET(req: NextRequest) {
               conference: {
                 select: {
                   id: true,
-                  
+
                   conferenceName: true,
                   status: true,
                   conferenceStartDate: true,
@@ -410,17 +410,18 @@ export async function GET(req: NextRequest) {
       });
 
       // Count achievements and advised works
-      const [achievementsCount, advisedPapers, advisedProjects] = await Promise.all([
-        prisma.achievement.count({
-          where: { uploadedById: userId },
-        }),
-        prisma.researchPaper.count({
-          where: { reviewedById: teacherProfile?.id },
-        }),
-        prisma.ongoingProjectAdvisor.count({
-          where: { advisorId: userId },
-        }),
-      ]);
+      const [achievementsCount, advisedPapers, advisedProjects] =
+        await Promise.all([
+          prisma.achievement.count({
+            where: { uploadedById: userId },
+          }),
+          prisma.researchPaper.count({
+            where: { reviewedById: teacherProfile?.id },
+          }),
+          prisma.ongoingProjectAdvisor.count({
+            where: { advisorId: userId },
+          }),
+        ]);
 
       profileData.teacherProfile = teacherProfile;
       profileData.stats = {
@@ -448,7 +449,7 @@ export async function GET(req: NextRequest) {
         totalAchievements,
         totalCompetitions,
       ] = await Promise.all([
-        prisma.user.count({ where: { isActive: true } }),
+        prisma.user.count(),
         prisma.studentProfile.count(),
         prisma.teacherProfile.count(),
         prisma.researchPaper.count(),
@@ -485,7 +486,7 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -511,13 +512,23 @@ export async function PUT(req: NextRequest) {
       await prisma.studentProfile.update({
         where: { userId },
         data: {
-          ...(studentProfile.rollNumber && { rollNumber: studentProfile.rollNumber }),
-          ...(studentProfile.batch && { batch: studentProfile.batch }),
+          ...(studentProfile.rollNumber && {
+            rollNumber: studentProfile.rollNumber,
+          }),
+          ...(studentProfile.enrollmentNumber && {
+            enrollmentNumber: studentProfile.enrollmentNumber,
+          }),
           ...(studentProfile.year && { year: parseInt(studentProfile.year) }),
           ...(studentProfile.section && { section: studentProfile.section }),
-          ...(studentProfile.department && { department: studentProfile.department }),
-          ...(studentProfile.phoneNumber !== undefined && { phoneNumber: studentProfile.phoneNumber }),
-          ...(studentProfile.address !== undefined && { address: studentProfile.address }),
+          ...(studentProfile.department && {
+            department: studentProfile.department,
+          }),
+          ...(studentProfile.phoneNumber !== undefined && {
+            phoneNumber: studentProfile.phoneNumber,
+          }),
+          ...(studentProfile.address !== undefined && {
+            address: studentProfile.address,
+          }),
           ...(studentProfile.bio !== undefined && { bio: studentProfile.bio }),
         },
       });
@@ -526,15 +537,25 @@ export async function PUT(req: NextRequest) {
       await prisma.teacherProfile.update({
         where: { userId },
         data: {
-          ...(teacherProfile.department && { department: teacherProfile.department }),
-          ...(teacherProfile.designation && { designation: teacherProfile.designation }),
-          ...(teacherProfile.affiliation && { affiliation: teacherProfile.affiliation }),
-          ...(teacherProfile.officialEmail !== undefined && { officialEmail: teacherProfile.officialEmail }),
-          ...(teacherProfile.phoneNumber !== undefined && { phoneNumber: teacherProfile.phoneNumber }),
-          ...(teacherProfile.address !== undefined && { address: teacherProfile.address }),
+          ...(teacherProfile.department && {
+            department: teacherProfile.department,
+          }),
+          ...(teacherProfile.designation && {
+            designation: teacherProfile.designation,
+          }),
+          ...(teacherProfile.affiliation && {
+            affiliation: teacherProfile.affiliation,
+          }),
+          ...(teacherProfile.phoneNumber !== undefined && {
+            phoneNumber: teacherProfile.phoneNumber,
+          }),
+          ...(teacherProfile.address !== undefined && {
+            address: teacherProfile.address,
+          }),
           ...(teacherProfile.bio !== undefined && { bio: teacherProfile.bio }),
-          ...(teacherProfile.subjectOfInterest && { subjectOfInterest: teacherProfile.subjectOfInterest }),
-          ...(teacherProfile.qualification !== undefined && { qualification: teacherProfile.qualification }),
+          ...(teacherProfile.subjectOfInterest && {
+            subjectOfInterest: teacherProfile.subjectOfInterest,
+          }),
         },
       });
     }
