@@ -67,50 +67,50 @@ export const FacultyData = [
     id: "1",
     name: "Prof. (Dr.) Sandip Mandal",
     position: "Head of Department of CSE(Iot, CS, BT)",
-    profileImage: "/faculty/sandipMandalSir.png", // Replace with actual image path
+    profileImage: "/Faculty/sandipMandalSir.png", // Replace with actual image path
   },
   {
     id: "2",
     name: "Sweta Saha",
     position: "Associate Professor of CSE(IoT, CS, BT)",
-    profileImage: "/faculty/swetamam.jpg", // Replace with actual image path
+    profileImage: "/Faculty/swetamam.jpg", // Replace with actual image path
   },
   {
     id: "3",
     name: "Dr. Susmita Biswas",
     position: "Assistant Professor of CSE(IoT, CS, BT)",
-    profileImage: "/faculty/susmitamam.jpg", // Replace with actual image path
+    profileImage: "/Faculty/susmitamam.jpg", // Replace with actual image path
   },
   {
     id: "4",
     name: "Dr. Siddhartha Roy",
     position: "Assistant Professor of CSE(IoT, CS, BT)",
-    profileImage: "/faculty/shiddharthasir.jpg", // Replace with actual image path
+    profileImage: "/Faculty/shiddharthasir.jpg", // Replace with actual image path
   },
   {
     id: "5",
     name: "Dr. Arijeet Ghosh",
     position: "Associate Professor of CSE(IoT, CS, BT)",
-    profileImage: "/faculty/arijeetsir.png", // Replace with actual image path
+    profileImage: "/Faculty/arijeetsir.png", // Replace with actual image path
   },
 
   {
     id: "6",
     name: "Avik Kumar Das",
     position: "Associate Professor of CSE(IoT, CS, BT)",
-    profileImage: "/faculty/aviksir.png", // Replace with actual image path
+    profileImage: "/Faculty/aviksir.png", // Replace with actual image path
   },
   {
     id: "7",
     name: "Sangita Dutta",
     position: "Associate Professor of CSE(IoT, CS, BT)",
-    profileImage: "/faculty/sangitamam.jpg", // Replace with actual image path
+    profileImage: "/Faculty/sangitamam.jpg", // Replace with actual image path
   },
   {
     id: "8",
     name: "Apurba Nandi",
     position: "Associate Professor of CSE(IoT, CS, BT)",
-    profileImage: "/faculty/apurbasir.png", // Replace with actual image path
+    profileImage: "/Faculty/apurbasir.png", // Replace with actual image path
   },
   
 ]
