@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import prisma from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
+import { authOptions } from "@/lib/auth";
+import { getServerSession } from "next-auth";
 
 // Admin view-only endpoint for students
 export async function POST(req: NextRequest) {
@@ -26,6 +28,25 @@ export async function POST(req: NextRequest) {
             role,
         },
     });
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email },
+    })
+    if (existingUser) {
+      if(role === UserRole.TEACHER){
+        await prisma.user.update({
+          where: { email: email },
+          data: { role: UserRole.TEACHER  },
+        });
+        await prisma.teacherProfile.create({
+          data: {
+            userId: existingUser.id,
+            department: "",
+            designation: "",
+            affiliation: "",
+          },
+        });
+      }
+    }
     return NextResponse.json({ message: "Faculty user created successfully" }, { status: 201 });
 
   } catch (error) {
@@ -38,7 +59,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const users = await prisma.teacherProfile.findMany();
+    const users = await prisma.facultyUser.findMany();
     return NextResponse.json(users);
   } catch (error) {
     console.error("Error fetching faculty users:", error);

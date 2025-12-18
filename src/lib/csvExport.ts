@@ -1,433 +1,979 @@
-// Utility functions for exporting data to CSV format
-import { Parser } from 'json2csv';
+import { BookChapter, Certification, Conference, Copyright, FDP, GrantIn, Journal, Patent, Transaction } from "@prisma/client";
+import { utils, writeFile, WorkBook } from "xlsx-js-style";
 
-/**
- * Converts an array of objects to CSV string using json2csv
- */
-export function jsonToCSV(data: any[], fields?: string[]): string {
-  if (!data || data.length === 0) {
-    return "";
-  }
-
-  try {
-    const parser = new Parser({ fields });
-    return parser.parse(data);
-  } catch (error) {
-    console.error("Error converting to CSV:", error);
-    return "";
-  }
+interface bookChapterWithAuthors extends BookChapter {
+  authors: {
+    id: string;
+    teacher: {
+      user: {
+        id: string;
+        email: string;
+        name: string;
+        image?: string;
+      };
+    };
+  }[];
 }
 
-/**
- * Generic function to export any data array to CSV
- */
-export function exportToCSV(data: any[], filename: string): void {
-  if (!data || data.length === 0) {
-    alert("No data to export");
-    return;
-  }
-  
-  const csvContent = jsonToCSV(data);
-  const fullFilename = filename.endsWith('.csv') ? filename : `${filename}.csv`;
-  downloadCSV(csvContent, fullFilename);
+interface certificationsWithAuthors extends Certification {
+  holders: {
+    id: string;
+    teacher: {
+      user: {
+        id: string;
+        email: string;
+        name: string;
+        image?: string;
+      };
+    };
+  }[];
 }
 
-/**
- * Downloads a CSV file
- */
-export function downloadCSV(csvContent: string, filename: string): void {
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
-  
-  link.setAttribute("href", url);
-  link.setAttribute("download", filename);
-  link.style.visibility = "hidden";
-  
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+interface conferenceWithAuthors extends Conference {
+  authors: {
+    id: string;
+    teacher: {
+      user: {
+        id: string;
+        email: string;
+        name: string;
+        image?: string;
+      };
+    };
+  }[];
 }
 
-/**
- * Format date for CSV export
- */
-export function formatDateForCSV(date: Date | string | null | undefined): string {
+interface copyrightWithAuthors extends Copyright {
+  inventors: {
+    id: string;
+    teacher: {
+      user: {
+        id: string;
+        email: string;
+        name: string;
+        image?: string;
+      };
+    };
+  }[];
+}
+
+interface fdpWithAuthors extends FDP {
+  participants: {
+    id: string;
+    teacher: {
+      user: {
+        id: string;
+        email: string;
+        name: string;
+        image?: string;
+      };
+    };
+  }[];
+}
+
+interface GrantWithAuthors extends GrantIn {
+  investigators: {
+    id: string;
+    role: string;
+    teacher: {
+      user: {
+        id: string;
+        email: string;
+        name: string;
+        image?: string;
+      };
+    };
+  }[];
+}
+
+interface JournalWithAuthors extends Journal {
+  authors: {
+    id: string;
+    teacher: {
+      user: {
+        id: string;
+        email: string;
+        name: string;
+        image?: string;
+      };
+    };
+  }[];
+}
+
+interface PatentWithInventors extends Patent {
+  inventors: {
+    id: string;
+    teacher: {
+      user: {
+        id: string;
+        email: string;
+        name: string;
+        image?: string;
+      };
+    };
+  }[];
+}
+
+// ------------------------
+// Generate soft random colors
+// ------------------------
+function randomPastelColor() {
+  const r = Math.floor(Math.random() * 127 + 127);
+  const g = Math.floor(Math.random() * 127 + 127);
+  const b = Math.floor(Math.random() * 127 + 127);
+  return `FF${r.toString(16)}${g.toString(16)}${b.toString(16)}`.toUpperCase();
+}
+
+// ------------------------
+// Create unique author-set signature
+// ------------------------
+function computeAuthorSet(authors: bookChapterWithAuthors["authors"]) {
+  const sortedIds = authors.map((a) => a.teacher.user.id).sort();
+  return sortedIds.join("|"); // Unique grouping key
+}
+
+// ------------------------
+// Format date for Excel display
+// ------------------------
+function formatDate(date: Date | string | null) {
   if (!date) return "";
   const d = new Date(date);
-  return d.toLocaleDateString("en-US");
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
-/**
- * Extract author names from research work data
- */
-export function getAuthorNames(authors: any[]): string {
-  if (!authors || authors.length === 0) return "";
-  return authors
-    .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
-    .map((author) => author.teacher?.user?.name || "")
-    .filter(Boolean)
-    .join(", ");
+// ------------------------
+// FLATTEN BookChapter → Excel Row
+// ------------------------
+function flattenBookChapter(ch: bookChapterWithAuthors) {
+  return {
+    "Book Chapter Title": ch.title,
+    status: ch.status,
+    "ISBN/ISSN": ch.isbnIssn ?? "",
+    "Registration Fees": ch.registrationFees ?? "",
+    reimbursement: ch.reimbursement ?? "",
+    createdAt: formatDate(ch.createdAt),
+    updatedAt: formatDate(ch.updatedAt),
+
+    authors: ch.authors.map((a) => a.teacher.user.name).join(", "),
+    authorSet: computeAuthorSet(ch.authors),
+  };
+}
+function flattenGrantIn(ch: GrantWithAuthors) {
+  return {
+    "Title": ch.title,
+    "Project Code": ch.projectCode ?? "",
+    "Project PI": ch.projectPI ?? "",
+    "Project Co-PI": ch.projectCoPI ?? "",
+    status: ch.status,
+    "Applied At": formatDate(ch.appliedAt ?? null),
+    "Granted At": formatDate(ch.grantedAt ?? null),
+    "Completed At": formatDate(ch.completedAt ?? null),
+    "Duration (Months)": ch.durationMonths ?? "",
+    "Grant Amount": ch.grantAmount ?? "",
+    "Utilized Amount": ch.utilizedAmount ?? "",
+    "Remaining Amount": ch.remainingAmount ?? "",
+    Publication: ch.publication ?? "",
+    "Publication Details": ch.publicationDetails ?? "",
+    createdAt: formatDate(ch.createdAt),
+    updatedAt: formatDate(ch.updatedAt),
+    investigators: ch.investigators.map((a)=>a.role + ": " + a.teacher.user.name).join(", "),
+    investigatorSet: computeAuthorSet(ch.investigators),
+  };
+}
+function flattenFDP(ch: fdpWithAuthors) {
+  return {
+    "FDP Title": ch.name,
+    "Organized By": ch.organizedBy ?? "",
+    "Sponsored By": ch.sponsoredBy ?? "",
+    Venue: ch.venue ?? "",
+    Duration: ch.duration ?? "",
+    Topic: ch.topic ?? "",
+    "Start Date": formatDate(ch.startDate ?? null),
+    "End Date": formatDate(ch.endDate ?? null),
+    certificateUrl: ch.certificateUrl ?? "",
+    remarks: ch.remarks ?? "",
+    createdAt: formatDate(ch.createdAt),
+    updatedAt: formatDate(ch.updatedAt),
+    participants: ch.participants.map((a) => a.teacher.user.name).join(", "),
+    participantSet: computeAuthorSet(ch.participants),
+  };
+}
+function flattenCertification(ch: certificationsWithAuthors) {
+  return {
+    "Certification Title": ch.certificationName,
+    "Offered By": ch.offeredBy ?? "",
+    Link: ch.link ?? "",
+    remarks: ch.remarks ?? "",
+    "Completion Date": formatDate(ch.completedAt ?? null),
+    createdAt: formatDate(ch.createdAt),
+    updatedAt: formatDate(ch.updatedAt),
+
+    Holders: ch.holders.map((a) => a.teacher.user.name).join(", "),
+    holderSet: computeAuthorSet(ch.holders),
+  };
+}
+function flattenConference(ch: conferenceWithAuthors) {
+  return {
+    "Conference Title": ch.conferenceName,
+    mode: ch.mode ?? "",
+    "Type Of Conference": ch.typeOfConference ?? "",
+    "Index Of Conference": ch.indexOfConference ?? "",
+    Publisher: ch.publisher ?? "",
+    Location: ch.location ?? "",
+    "Conference Start Date": formatDate(ch.conferenceStartDate ?? null),
+    "Conference End Date": formatDate(ch.conferenceEndDate ?? null),
+    status: ch.status,
+    "Paper Link DOI": ch.paperLinkDOI ?? "",
+    "Registration Fees": ch.registrationFees ?? "",
+    "Reimbursement Status": ch.reimbursementStatus ?? "",
+    "Reimbursement Date": formatDate(ch.reimbursementDate ?? null),
+    createdAt: formatDate(ch.createdAt),
+    updatedAt: formatDate(ch.updatedAt),
+
+    authors: ch.authors.map((a) => a.teacher.user.name).join(", "),
+    authorSet: computeAuthorSet(ch.authors),
+  };
+}
+function flattenCopyrights(ch: copyrightWithAuthors) {
+  return {
+    "Copyright Title": ch.title,
+    "Filed Date": formatDate(ch.filedAt ?? null),
+    "Submitted Date": formatDate(ch.submittedAt ?? null),
+    "Published Date": formatDate(ch.publishedAt ?? null),
+    "Grant Date": formatDate(ch.grantedAt ?? null),
+    createdAt: formatDate(ch.createdAt),
+    updatedAt: formatDate(ch.updatedAt),
+
+    Inventors: ch.inventors.map((a) => a.teacher.user.name).join(", "),
+    inventorSet: computeAuthorSet(ch.inventors),
+  };
 }
 
-/**
- * Export Copyrights to CSV
- */
-export function exportCopyrightsToCSV(copyrights: any[]): string {
-  const data = copyrights.map((item) => ({
-    Title: item.title,
-    Description: item.description || "",
-    Keywords: item.keywords?.join("; ") || "",
-    "Copyright Number": item.copyrightNumber || "",
-    Applicant: item.applicant || "",
-    "Filed Date": formatDateForCSV(item.filedAt),
-    "Submitted Date": formatDateForCSV(item.submittedAt),
-    "Published Date": formatDateForCSV(item.publishedAt),
-    "Granted Date": formatDateForCSV(item.grantedAt),
-    Country: item.country || "",
-    "Certificate URL": item.certificateUrl || "",
-    Inventors: getAuthorNames(item.inventors),
-    "Created At": formatDateForCSV(item.createdAt),
-  }));
-  
-  return jsonToCSV(data);
-}
+// ------------------------
+// EXPORT FUNCTION
+// ------------------------
+export function exportCertificationsExcel(
+  certifications: certificationsWithAuthors[],
+  fileName = "Certifications.xlsx"
+) {
+  if (!certifications.length) return;
 
-/**
- * Export Patents to CSV
- */
-export function exportPatentsToCSV(patents: any[]): string {
-  const data = patents.map((item) => ({
-    Title: item.title,
-    Description: item.description || "",
-    Keywords: item.keywords?.join("; ") || "",
-    Applicant: item.applicant,
-    "Application Number": item.applicationNo || "",
-    "Patent Number": item.patentNumber || "",
-    "Filed Date": formatDateForCSV(item.filedAt),
-    "Submitted Date": formatDateForCSV(item.submittedAt),
-    "Published Date": formatDateForCSV(item.publishedAt),
-    "Granted Date": formatDateForCSV(item.grantedAt),
-    "Publication Link": item.publicationLink || "",
-    "Patent Link": item.patentLink || "",
-    Country: item.country || "",
-    Inventors: getAuthorNames(item.inventors),
-    "Created At": formatDateForCSV(item.createdAt),
-  }));
-  
-  return jsonToCSV(data);
-}
+  // Flatten rows
+  const flatRows = certifications.map(flattenCertification);
 
-/**
- * Export Journals to CSV
- */
-export function exportJournalsToCSV(journals: any[]): string {
-  const data = journals.map((item) => ({
-    Title: item.title,
-    Description: item.description || "",
-    Keywords: item.keywords?.join("; ") || "",
-    "Journal Name": item.journalName,
-    "Type of Journal": item.typeOfJournal || "",
-    "Index of Journal": item.indexOfJournal || "",
-    "Impact Factor": item.impactFactor || "",
-    "Impact Factor Date": formatDateForCSV(item.impactFactorDate),
-    Publisher: item.publisher || "",
-    ISSN: item.issn || "",
-    "Volume Number": item.volumeNumber || "",
-    "Issue Number": item.issueNumber || "",
-    "Page Numbers": item.pageNumbers || "",
-    Status: item.status,
-    "Status Date": formatDateForCSV(item.statusDate),
-    "Paper Link/DOI": item.paperLinkDOI || "",
-    "Registration Fees": item.registrationFees || "",
-    "Reimbursement Status": item.reimbursementStatus || "",
-    "Reimbursement Date": formatDateForCSV(item.reimbursementDate),
-    Authors: getAuthorNames(item.authors),
-    "Created At": formatDateForCSV(item.createdAt),
-  }));
-  
-  return jsonToCSV(data);
-}
+  // Extract headers
+  const headers = Object.keys(flatRows[0]);
 
-/**
- * Export Conferences to CSV
- */
-export function exportConferencesToCSV(conferences: any[]): string {
-  const data = conferences.map((item) => ({
-    Title: item.title,
-    Description: item.description || "",
-    Keywords: item.keywords?.join("; ") || "",
-    "Conference Name": item.conferenceName,
-    Mode: item.mode || "",
-    "Type of Conference": item.typeOfConference || "",
-    "Index of Conference": item.indexOfConference || "",
-    Publisher: item.publisher || "",
-    Location: item.location || "",
-    "Conference Start Date": formatDateForCSV(item.conferenceStartDate),
-    "Conference End Date": formatDateForCSV(item.conferenceEndDate),
-    Status: item.status,
-    "Status Date": formatDateForCSV(item.statusDate),
-    "Paper Link/DOI": item.paperLinkDOI || "",
-    "Registration Fees": item.registrationFees || "",
-    "Reimbursement Status": item.reimbursementStatus || "",
-    "Reimbursement Date": formatDateForCSV(item.reimbursementDate),
-    Authors: getAuthorNames(item.authors),
-    "Created At": formatDateForCSV(item.createdAt),
-  }));
-  
-  return jsonToCSV(data);
-}
+  // Build initial sheet
+  const sheetData = [
+    headers,
+    ...flatRows.map((row) => headers.map((h) => row[h as keyof typeof row])),
+  ];
 
-/**
- * Export Transactions to CSV
- */
-export function exportTransactionsToCSV(transactions: any[]): string {
-  const data = transactions.map((item) => ({
-    Title: item.title,
-    Description: item.description || "",
-    Keywords: item.keywords?.join("; ") || "",
-    "Transaction Name": item.transactionName,
-    "Type of Transaction": item.typeOfTransaction || "",
-    "Index of Transaction": item.indexOfTransaction || "",
-    "Impact Factor": item.impactFactor || "",
-    "Impact Factor Date": formatDateForCSV(item.impactFactorDate),
-    Publisher: item.publisher || "",
-    Status: item.status,
-    "Status Date": formatDateForCSV(item.statusDate),
-    "Paper Link/DOI": item.paperLinkDOI || "",
-    "Registration Fees": item.registrationFees || "",
-    "Reimbursement Status": item.reimbursementStatus || "",
-    "Reimbursement Date": formatDateForCSV(item.reimbursementDate),
-    Authors: getAuthorNames(item.authors),
-    "Created At": formatDateForCSV(item.createdAt),
-  }));
-  
-  return jsonToCSV(data);
-}
+  const ws = utils.aoa_to_sheet(sheetData);
 
-/**
- * Export Book Chapters to CSV
- */
-export function exportBookChaptersToCSV(bookChapters: any[]): string {
-  const data = bookChapters.map((item) => ({
-    Title: item.title,
-    Description: item.description || "",
-    Keywords: item.keywords?.join("; ") || "",
-    "Book Title": item.bookTitle || "",
-    "Chapter Number": item.chapterNumber || "",
-    Publisher: item.publisher || "",
-    Edition: item.edition || "",
-    Status: item.status,
-    "Status Date": formatDateForCSV(item.statusDate),
-    "ISBN/ISSN": item.isbnIssn || "",
-    "Page Numbers": item.pageNumbers || "",
-    "Registration Fees": item.registrationFees || "",
-    "Reimbursement Status": item.reimbursementStatus || "",
-    "Reimbursement Date": formatDateForCSV(item.reimbursementDate),
-    Authors: getAuthorNames(item.authors),
-    "Created At": formatDateForCSV(item.createdAt),
-  }));
-  
-  return jsonToCSV(data);
-}
+  // Style header row (row 0)
+  headers.forEach((_, colIndex) => {
+    const headerCell = utils.encode_cell({ r: 0, c: colIndex });
 
-/**
- * Export Grants to CSV
- */
-export function exportGrantsToCSV(grants: any[]): string {
-  const data = grants.map((item) => ({
-    Title: item.title,
-    Description: item.description || "",
-    Keywords: item.keywords?.join("; ") || "",
-    "Project Code": item.projectCode || "",
-    "Funding Agency": item.fundingAgency || "",
-    Status: item.status || "",
-    "Applied Date": formatDateForCSV(item.appliedAt),
-    "Granted Date": formatDateForCSV(item.grantedAt),
-    "Completed Date": formatDateForCSV(item.completedAt),
-    "Duration (Months)": item.durationMonths || "",
-    "Grant Amount": item.grantAmount || "",
-    "Utilized Amount": item.utilizedAmount || "",
-    "Remaining Amount": item.remainingAmount || "",
-    Publication: item.publication || "",
-    "Publication Details": item.publicationDetails || "",
-    Investigators: getAuthorNames(item.investigators),
-    "Created At": formatDateForCSV(item.createdAt),
-  }));
-  
-  return jsonToCSV(data);
-}
+    if (!ws[headerCell]) return;
 
-/**
- * Export FDPs to CSV
- */
-export function exportFDPsToCSV(fdps: any[]): string {
-  const data = fdps.map((item) => ({
-    Name: item.name,
-    Description: item.description || "",
-    Keywords: item.keywords?.join("; ") || "",
-    "Organized By": item.organizedBy || "",
-    "Sponsored By": item.sponsoredBy || "",
-    Venue: item.venue || "",
-    Duration: item.duration || "",
-    "Start Date": formatDateForCSV(item.startDate),
-    "End Date": formatDateForCSV(item.endDate),
-    Topic: item.topic || "",
-    "Certificate URL": item.certificateUrl || "",
-    Remarks: item.remarks || "",
-    Participants: item.participants?.map((p: any) => p.teacher?.user?.name || "").filter(Boolean).join(", ") || "",
-    "Created At": formatDateForCSV(item.createdAt),
-  }));
-  
-  return jsonToCSV(data);
-}
+    ws[headerCell].s = {
+      fill: {
+        patternType: "solid",
+        fgColor: { rgb: "FF28a745" }, // Green background
+      },
+      font: {
+        bold: true,
+        color: { rgb: "FF000000" }, // Black text
+      },
+      alignment: { vertical: "center", horizontal: "center" },
+    };
+  });
 
-/**
- * Export Certifications to CSV
- */
-export function exportCertificationsToCSV(certifications: any[]): string {
-  const data = certifications.map((item) => ({
-    "Certification Name": item.certificationName,
-    Description: item.description || "",
-    Keywords: item.keywords?.join("; ") || "",
-    "Offered By": item.offeredBy || "",
-    Platform: item.platform || "",
-    "Certificate Number": item.certificateNumber || "",
-    "Start Date": formatDateForCSV(item.startDate),
-    "Completed Date": formatDateForCSV(item.completedAt),
-    "Expires Date": formatDateForCSV(item.expiresAt),
-    Link: item.link || "",
-    "Certificate URL": item.certificateUrl || "",
-    Remarks: item.remarks || "",
-    Holders: item.holders?.map((h: any) => h.teacher?.user?.name || "").filter(Boolean).join(", ") || "",
-    "Created At": formatDateForCSV(item.createdAt),
-  }));
-  
-  return jsonToCSV(data);
-}
+  // Group color mapping
+  const colorMap = new Map<string, string>();
 
-/**
- * Export all research works to a single CSV with type indicator
- */
-export function exportAllResearchWorksToCSV(data: any): string {
-  const allRows: any[] = [];
-  
-  // Add copyrights
-  data.copyrights?.forEach((item: any) => {
-    allRows.push({
-      Type: "Copyright",
-      Title: item.title,
-      Description: item.description || "",
-      "Reference Number": item.copyrightNumber || "",
-      Status: "",
-      Date: formatDateForCSV(item.grantedAt || item.publishedAt || item.filedAt),
-      "Created At": formatDateForCSV(item.createdAt),
+  flatRows.forEach((row, index) => {
+    const excelRow = index + 2; // 1 = headers
+    const groupKey = row.holderSet;
+
+    if (!colorMap.has(groupKey)) {
+      colorMap.set(groupKey, randomPastelColor());
+    }
+    const bg = colorMap.get(groupKey)!;
+
+    headers.forEach((_, colIndex) => {
+      const cellAddress = utils.encode_cell({ r: excelRow - 1, c: colIndex });
+
+      if (!ws[cellAddress]) return;
+
+      ws[cellAddress].s = {
+        fill: {
+          patternType: "solid",
+          fgColor: { rgb: bg },
+        },
+        alignment: { vertical: "center", horizontal: "left" },
+        border: {
+          top: { style: "thin", color: { rgb: "FF000000" } },
+          bottom: { style: "thin", color: { rgb: "FF000000" } },
+          left: { style: "thin", color: { rgb: "FF000000" } },
+          right: { style: "thin", color: { rgb: "FF000000" } },
+        },
+      };
     });
   });
-  
-  // Add patents
-  data.patents?.forEach((item: any) => {
-    allRows.push({
-      Type: "Patent",
-      Title: item.title,
-      Description: item.description || "",
-      "Reference Number": item.patentNumber || item.applicationNo || "",
-      Status: "",
-      Date: formatDateForCSV(item.grantedAt || item.publishedAt || item.filedAt),
-      "Created At": formatDateForCSV(item.createdAt),
+
+  // Workbook
+  const wb: WorkBook = {
+    SheetNames: ["BookChapters"],
+    Sheets: { BookChapters: ws },
+  };
+
+  writeFile(wb, fileName);
+}
+export function exportGrantIn(
+  grants: GrantWithAuthors[],
+  fileName = "Grants.xlsx"
+) {
+  if (!grants.length) return;
+
+  // Flatten rows
+  const flatRows = grants.map(flattenGrantIn);
+
+  // Extract headers
+  const headers = Object.keys(flatRows[0]);
+
+  // Build initial sheet
+  const sheetData = [
+    headers,
+    ...flatRows.map((row) => headers.map((h) => row[h as keyof typeof row])),
+  ];
+
+  const ws = utils.aoa_to_sheet(sheetData);
+
+  // Style header row (row 0)
+  headers.forEach((_, colIndex) => {
+    const headerCell = utils.encode_cell({ r: 0, c: colIndex });
+
+    if (!ws[headerCell]) return;
+
+    ws[headerCell].s = {
+      fill: {
+        patternType: "solid",
+        fgColor: { rgb: "FF28a745" }, // Green background
+      },
+      font: {
+        bold: true,
+        color: { rgb: "FF000000" }, // Black text
+      },
+      alignment: { vertical: "center", horizontal: "center" },
+    };
+  });
+
+  // Group color mapping
+  const colorMap = new Map<string, string>();
+
+  flatRows.forEach((row, index) => {
+    const excelRow = index + 2; // 1 = headers
+    const groupKey = row.investigatorSet;
+
+    if (!colorMap.has(groupKey)) {
+      colorMap.set(groupKey, randomPastelColor());
+    }
+    const bg = colorMap.get(groupKey)!;
+
+    headers.forEach((_, colIndex) => {
+      const cellAddress = utils.encode_cell({ r: excelRow - 1, c: colIndex });
+
+      if (!ws[cellAddress]) return;
+
+      ws[cellAddress].s = {
+        fill: {
+          patternType: "solid",
+          fgColor: { rgb: bg },
+        },
+        alignment: { vertical: "center", horizontal: "left" },
+        border: {
+          top: { style: "thin", color: { rgb: "FF000000" } },
+          bottom: { style: "thin", color: { rgb: "FF000000" } },
+          left: { style: "thin", color: { rgb: "FF000000" } },
+          right: { style: "thin", color: { rgb: "FF000000" } },
+        },
+      };
     });
   });
-  
-  // Add journals
-  data.journals?.forEach((item: any) => {
-    allRows.push({
-      Type: "Journal",
-      Title: item.title,
-      Description: item.description || "",
-      "Reference Number": item.journalName || "",
-      Status: item.status,
-      Date: formatDateForCSV(item.statusDate),
-      "Created At": formatDateForCSV(item.createdAt),
+
+  // Workbook
+  const wb: WorkBook = {
+    SheetNames: ["BookChapters"],
+    Sheets: { BookChapters: ws },
+  };
+
+  writeFile(wb, fileName);
+}
+export function exportFDPsExcel(
+  fdps: fdpWithAuthors[],
+  fileName = "FDPs.xlsx"
+) {
+  if (!fdps.length) return;
+
+  // Flatten rows
+  const flatRows = fdps.map(flattenFDP);
+
+  // Extract headers
+  const headers = Object.keys(flatRows[0]);
+
+  // Build initial sheet
+  const sheetData = [
+    headers,
+    ...flatRows.map((row) => headers.map((h) => row[h as keyof typeof row])),
+  ];
+
+  const ws = utils.aoa_to_sheet(sheetData);
+
+  // Style header row (row 0)
+  headers.forEach((_, colIndex) => {
+    const headerCell = utils.encode_cell({ r: 0, c: colIndex });
+
+    if (!ws[headerCell]) return;
+
+    ws[headerCell].s = {
+      fill: {
+        patternType: "solid",
+        fgColor: { rgb: "FF28a745" }, // Green background
+      },
+      font: {
+        bold: true,
+        color: { rgb: "FF000000" }, // Black text
+      },
+      alignment: { vertical: "center", horizontal: "center" },
+    };
+  });
+
+  // Group color mapping
+  const colorMap = new Map<string, string>();
+
+  flatRows.forEach((row, index) => {
+    const excelRow = index + 2; // 1 = headers
+    const groupKey = row.participantSet;
+
+    if (!colorMap.has(groupKey)) {
+      colorMap.set(groupKey, randomPastelColor());
+    }
+    const bg = colorMap.get(groupKey)!;
+
+    headers.forEach((_, colIndex) => {
+      const cellAddress = utils.encode_cell({ r: excelRow - 1, c: colIndex });
+
+      if (!ws[cellAddress]) return;
+
+      ws[cellAddress].s = {
+        fill: {
+          patternType: "solid",
+          fgColor: { rgb: bg },
+        },
+        alignment: { vertical: "center", horizontal: "left" },
+        border: {
+          top: { style: "thin", color: { rgb: "FF000000" } },
+          bottom: { style: "thin", color: { rgb: "FF000000" } },
+          left: { style: "thin", color: { rgb: "FF000000" } },
+          right: { style: "thin", color: { rgb: "FF000000" } },
+        },
+      };
     });
   });
-  
-  // Add conferences
-  data.conferences?.forEach((item: any) => {
-    allRows.push({
-      Type: "Conference",
-      Title: item.title,
-      Description: item.description || "",
-      "Reference Number": item.conferenceName || "",
-      Status: item.status,
-      Date: formatDateForCSV(item.conferenceStartDate),
-      "Created At": formatDateForCSV(item.createdAt),
+
+  // Workbook
+  const wb: WorkBook = {
+    SheetNames: ["BookChapters"],
+    Sheets: { BookChapters: ws },
+  };
+
+  writeFile(wb, fileName);
+}
+export function exportCopyrightsExcel(
+  copyrights: copyrightWithAuthors[],
+  fileName = "Copyrights.xlsx"
+) {
+  if (!copyrights.length) return;
+
+  // Flatten rows
+  const flatRows = copyrights.map(flattenCopyrights);
+
+  // Extract headers
+  const headers = Object.keys(flatRows[0]);
+
+  // Build initial sheet
+  const sheetData = [
+    headers,
+    ...flatRows.map((row) => headers.map((h) => row[h as keyof typeof row])),
+  ];
+
+  const ws = utils.aoa_to_sheet(sheetData);
+
+  // Style header row (row 0)
+  headers.forEach((_, colIndex) => {
+    const headerCell = utils.encode_cell({ r: 0, c: colIndex });
+
+    if (!ws[headerCell]) return;
+
+    ws[headerCell].s = {
+      fill: {
+        patternType: "solid",
+        fgColor: { rgb: "FF28a745" }, // Green background
+      },
+      font: {
+        bold: true,
+        color: { rgb: "FF000000" }, // Black text
+      },
+      alignment: { vertical: "center", horizontal: "center" },
+    };
+  });
+
+  // Group color mapping
+  const colorMap = new Map<string, string>();
+
+  flatRows.forEach((row, index) => {
+    const excelRow = index + 2; // 1 = headers
+    const groupKey = row.inventorSet;
+
+    if (!colorMap.has(groupKey)) {
+      colorMap.set(groupKey, randomPastelColor());
+    }
+    const bg = colorMap.get(groupKey)!;
+
+    headers.forEach((_, colIndex) => {
+      const cellAddress = utils.encode_cell({ r: excelRow - 1, c: colIndex });
+
+      if (!ws[cellAddress]) return;
+
+      ws[cellAddress].s = {
+        fill: {
+          patternType: "solid",
+          fgColor: { rgb: bg },
+        },
+        alignment: { vertical: "center", horizontal: "left" },
+        border: {
+          top: { style: "thin", color: { rgb: "FF000000" } },
+          bottom: { style: "thin", color: { rgb: "FF000000" } },
+          left: { style: "thin", color: { rgb: "FF000000" } },
+          right: { style: "thin", color: { rgb: "FF000000" } },
+        },
+      };
     });
   });
-  
-  // Add transactions
-  data.transactions?.forEach((item: any) => {
-    allRows.push({
-      Type: "Transaction",
-      Title: item.title,
-      Description: item.description || "",
-      "Reference Number": item.transactionName || "",
-      Status: item.status,
-      Date: formatDateForCSV(item.statusDate),
-      "Created At": formatDateForCSV(item.createdAt),
+
+  // Workbook
+  const wb: WorkBook = {
+    SheetNames: ["BookChapters"],
+    Sheets: { BookChapters: ws },
+  };
+
+  writeFile(wb, fileName);
+}
+export function exportBookChaptersExcel(
+  chapters: bookChapterWithAuthors[],
+  fileName = "BookChapters.xlsx"
+) {
+  if (!chapters.length) return;
+
+  // Flatten rows
+  const flatRows = chapters.map(flattenBookChapter);
+
+  // Extract headers
+  const headers = Object.keys(flatRows[0]);
+
+  // Build initial sheet
+  const sheetData = [
+    headers,
+    ...flatRows.map((row) => headers.map((h) => row[h as keyof typeof row])),
+  ];
+
+  const ws = utils.aoa_to_sheet(sheetData);
+
+  // Style header row (row 0)
+  headers.forEach((_, colIndex) => {
+    const headerCell = utils.encode_cell({ r: 0, c: colIndex });
+
+    if (!ws[headerCell]) return;
+
+    ws[headerCell].s = {
+      fill: {
+        patternType: "solid",
+        fgColor: { rgb: "FF28a745" }, // Green background
+      },
+      font: {
+        bold: true,
+        color: { rgb: "FF000000" }, // Black text
+      },
+      alignment: { vertical: "center", horizontal: "center" },
+    };
+  });
+
+  // Group color mapping
+  const colorMap = new Map<string, string>();
+
+  flatRows.forEach((row, index) => {
+    const excelRow = index + 2; // 1 = headers
+    const groupKey = row.authorSet;
+
+    if (!colorMap.has(groupKey)) {
+      colorMap.set(groupKey, randomPastelColor());
+    }
+    const bg = colorMap.get(groupKey)!;
+
+    headers.forEach((_, colIndex) => {
+      const cellAddress = utils.encode_cell({ r: excelRow - 1, c: colIndex });
+
+      if (!ws[cellAddress]) return;
+
+      ws[cellAddress].s = {
+        fill: {
+          patternType: "solid",
+          fgColor: { rgb: bg },
+        },
+        alignment: { vertical: "center", horizontal: "left" },
+        border: {
+          top: { style: "thin", color: { rgb: "FF000000" } },
+          bottom: { style: "thin", color: { rgb: "FF000000" } },
+          left: { style: "thin", color: { rgb: "FF000000" } },
+          right: { style: "thin", color: { rgb: "FF000000" } },
+        },
+      };
     });
   });
-  
-  // Add book chapters
-  data.bookChapters?.forEach((item: any) => {
-    allRows.push({
-      Type: "Book Chapter",
-      Title: item.title,
-      Description: item.description || "",
-      "Reference Number": item.bookTitle || "",
-      Status: item.status,
-      Date: formatDateForCSV(item.statusDate),
-      "Created At": formatDateForCSV(item.createdAt),
+
+  // Workbook
+  const wb: WorkBook = {
+    SheetNames: ["BookChapters"],
+    Sheets: { BookChapters: ws },
+  };
+
+  writeFile(wb, fileName);
+}
+export function exportConferenceExcel(
+  chapters: conferenceWithAuthors[],
+  fileName = "Conference.xlsx"
+) {
+  if (!chapters.length) return;
+
+  // Flatten rows
+  const flatRows = chapters.map(flattenConference);
+
+  // Extract headers
+  const headers = Object.keys(flatRows[0]);
+
+  // Build initial sheet
+  const sheetData = [
+    headers,
+    ...flatRows.map((row) => headers.map((h) => row[h as keyof typeof row])),
+  ];
+
+  const ws = utils.aoa_to_sheet(sheetData);
+
+  // Style header row (row 0)
+  headers.forEach((_, colIndex) => {
+    const headerCell = utils.encode_cell({ r: 0, c: colIndex });
+
+    if (!ws[headerCell]) return;
+
+    ws[headerCell].s = {
+      fill: {
+        patternType: "solid",
+        fgColor: { rgb: "FF28a745" }, // Green background
+      },
+      font: {
+        bold: true,
+        color: { rgb: "FF000000" }, // Black text
+      },
+      alignment: { vertical: "center", horizontal: "center" },
+    };
+  });
+
+  // Group color mapping
+  const colorMap = new Map<string, string>();
+
+  flatRows.forEach((row, index) => {
+    const excelRow = index + 2; // 1 = headers
+    const groupKey = row.authorSet;
+
+    if (!colorMap.has(groupKey)) {
+      colorMap.set(groupKey, randomPastelColor());
+    }
+    const bg = colorMap.get(groupKey)!;
+
+    headers.forEach((_, colIndex) => {
+      const cellAddress = utils.encode_cell({ r: excelRow - 1, c: colIndex });
+
+      if (!ws[cellAddress]) return;
+
+      ws[cellAddress].s = {
+        fill: {
+          patternType: "solid",
+          fgColor: { rgb: bg },
+        },
+        alignment: { vertical: "center", horizontal: "left" },
+        border: {
+          top: { style: "thin", color: { rgb: "FF000000" } },
+          bottom: { style: "thin", color: { rgb: "FF000000" } },
+          left: { style: "thin", color: { rgb: "FF000000" } },
+          right: { style: "thin", color: { rgb: "FF000000" } },
+        },
+      };
     });
   });
-  
-  // Add grants
-  data.grants?.forEach((item: any) => {
-    allRows.push({
-      Type: "Grant",
-      Title: item.title,
-      Description: item.description || "",
-      "Reference Number": item.projectCode || "",
-      Status: item.status || "",
-      Date: formatDateForCSV(item.grantedAt || item.appliedAt),
-      "Created At": formatDateForCSV(item.createdAt),
+
+  // Workbook
+  const wb: WorkBook = {
+    SheetNames: ["BookChapters"],
+    Sheets: { BookChapters: ws },
+  };
+
+  writeFile(wb, fileName);
+}
+
+// ------------------------
+// Journals Export
+// ------------------------
+function flattenJournals(journal: JournalWithAuthors) {
+  return {
+    "Journal Title": journal.title,
+    "Journal Name": journal.journalName || "N/A",
+    "Publisher": journal.publisher || "N/A",
+    "Status": journal.status || "N/A",
+    "Status Date": formatDate(journal.statusDate ?? null),
+    "Impact Factor": journal.impactFactor ? journal.impactFactor.toString() : "N/A",
+    "Impact Factor Date": formatDate(journal.impactFactorDate ?? null),
+    "Reimbursement Date": formatDate(journal.reimbursementDate ?? null),
+    "Created At": formatDate(journal.createdAt),
+    "Updated At": formatDate(journal.updatedAt),
+    "Authors": journal.authors.map((a) => a.teacher.user.name).join(", "),
+    "authorSet": computeAuthorSet(journal.authors),
+  };
+}
+
+export function exportJournalsExcel(
+  journals: JournalWithAuthors[],
+  fileName = "Journals.xlsx"
+) {
+  if (!journals.length) return;
+
+  const flatRows = journals.map(flattenJournals);
+  const headers = Object.keys(flatRows[0]);
+  const sheetData = [
+    headers,
+    ...flatRows.map((row) => headers.map((h) => row[h as keyof typeof row])),
+  ];
+
+  const ws = utils.aoa_to_sheet(sheetData);
+
+  headers.forEach((_, colIndex) => {
+    const headerCell = utils.encode_cell({ r: 0, c: colIndex });
+    if (!ws[headerCell]) return;
+    ws[headerCell].s = {
+      fill: { patternType: "solid", fgColor: { rgb: "FF28a745" } },
+      font: { bold: true, color: { rgb: "FF000000" } },
+      alignment: { vertical: "center", horizontal: "center" },
+    };
+  });
+
+  const colorMap = new Map<string, string>();
+  flatRows.forEach((row, index) => {
+    const excelRow = index + 2;
+    const groupKey = row.authorSet;
+    if (!colorMap.has(groupKey)) {
+      colorMap.set(groupKey, randomPastelColor());
+    }
+    const bg = colorMap.get(groupKey)!;
+    headers.forEach((_, colIndex) => {
+      const cellAddress = utils.encode_cell({ r: excelRow - 1, c: colIndex });
+      if (!ws[cellAddress]) return;
+      ws[cellAddress].s = {
+        fill: { patternType: "solid", fgColor: { rgb: bg } },
+        alignment: { vertical: "center", horizontal: "left" },
+        border: {
+          top: { style: "thin", color: { rgb: "FF000000" } },
+          bottom: { style: "thin", color: { rgb: "FF000000" } },
+          left: { style: "thin", color: { rgb: "FF000000" } },
+          right: { style: "thin", color: { rgb: "FF000000" } },
+        },
+      };
     });
   });
-  
-  // Add FDPs
-  data.fdps?.forEach((item: any) => {
-    allRows.push({
-      Type: "FDP",
-      Title: item.name,
-      Description: item.description || "",
-      "Reference Number": item.organizedBy || "",
-      Status: "",
-      Date: formatDateForCSV(item.startDate),
-      "Created At": formatDateForCSV(item.createdAt),
+
+  const wb: WorkBook = { SheetNames: ["Journals"], Sheets: { Journals: ws } };
+  writeFile(wb, fileName);
+}
+
+// ------------------------
+// Patents Export
+// ------------------------
+function flattenPatents(patent: PatentWithInventors) {
+  return {
+    "Patent Title": patent.title,
+    "Applicant": patent.applicant || "N/A",
+    "Application Number": patent.applicationNo || "N/A",
+    "Patent Number": patent.patentNumber || "N/A",
+    "Country": patent.country || "N/A",
+    "Filed Date": formatDate(patent.filedAt ?? null),
+    "Submitted Date": formatDate(patent.submittedAt ?? null),
+    "Published Date": formatDate(patent.publishedAt ?? null),
+    "Granted Date": formatDate(patent.grantedAt ?? null),
+    "Created At": formatDate(patent.createdAt),
+    "Updated At": formatDate(patent.updatedAt),
+    "Inventors": patent.inventors.map((i) => i.teacher.user.name).join(", "),
+    "inventorSet": computeAuthorSet(patent.inventors),
+  };
+}
+
+export function exportPatentsExcel(
+  patents: PatentWithInventors[],
+  fileName = "Patents.xlsx"
+) {
+  if (!patents.length) return;
+
+  const flatRows = patents.map(flattenPatents);
+  const headers = Object.keys(flatRows[0]);
+  const sheetData = [
+    headers,
+    ...flatRows.map((row) => headers.map((h) => row[h as keyof typeof row])),
+  ];
+
+  const ws = utils.aoa_to_sheet(sheetData);
+
+  headers.forEach((_, colIndex) => {
+    const headerCell = utils.encode_cell({ r: 0, c: colIndex });
+    if (!ws[headerCell]) return;
+    ws[headerCell].s = {
+      fill: { patternType: "solid", fgColor: { rgb: "FF28a745" } },
+      font: { bold: true, color: { rgb: "FF000000" } },
+      alignment: { vertical: "center", horizontal: "center" },
+    };
+  });
+
+  const colorMap = new Map<string, string>();
+  flatRows.forEach((row, index) => {
+    const excelRow = index + 2;
+    const groupKey = row.inventorSet;
+    if (!colorMap.has(groupKey)) {
+      colorMap.set(groupKey, randomPastelColor());
+    }
+    const bg = colorMap.get(groupKey)!;
+    headers.forEach((_, colIndex) => {
+      const cellAddress = utils.encode_cell({ r: excelRow - 1, c: colIndex });
+      if (!ws[cellAddress]) return;
+      ws[cellAddress].s = {
+        fill: { patternType: "solid", fgColor: { rgb: bg } },
+        alignment: { vertical: "center", horizontal: "left" },
+        border: {
+          top: { style: "thin", color: { rgb: "FF000000" } },
+          bottom: { style: "thin", color: { rgb: "FF000000" } },
+          left: { style: "thin", color: { rgb: "FF000000" } },
+          right: { style: "thin", color: { rgb: "FF000000" } },
+        },
+      };
     });
   });
-  
-  // Add certifications
-  data.certifications?.forEach((item: any) => {
-    allRows.push({
-      Type: "Certification",
-      Title: item.certificationName,
-      Description: item.description || "",
-      "Reference Number": item.certificateNumber || "",
-      Status: "",
-      Date: formatDateForCSV(item.completedAt),
-      "Created At": formatDateForCSV(item.createdAt),
+
+  const wb: WorkBook = { SheetNames: ["Patents"], Sheets: { Patents: ws } };
+  writeFile(wb, fileName);
+}
+
+// ------------------------
+// Transactions Export
+// ------------------------
+interface TransactionWithAuthors extends Transaction {
+  authors: {
+    id: string;
+    teacher: {
+      user: {
+        id: string;
+        email: string;
+        name: string;
+        image?: string;
+      };
+    };
+  }[];
+}
+
+function flattenTransactions(transaction: TransactionWithAuthors) {
+  return {
+    "Transaction Title": transaction.title,
+    "Transaction Name": transaction.transactionName || "N/A",
+    "Type": transaction.typeOfTransaction || "N/A",
+    "Index": transaction.indexOfTransaction || "N/A",
+    "Publisher": transaction.publisher || "N/A",
+    "Status": transaction.status || "N/A",
+    "Status Date": formatDate(transaction.statusDate ?? null),
+    "Impact Factor": transaction.impactFactor ? transaction.impactFactor.toString() : "N/A",
+    "Impact Factor Date": formatDate(transaction.impactFactorDate ?? null),
+    "DOI/Link": transaction.paperLinkDOI || "N/A",
+    "Registration Fees": transaction.registrationFees ? transaction.registrationFees.toString() : "N/A",
+    "Reimbursement Status": transaction.reimbursementStatus || "N/A",
+    "Visibility": transaction.isPublic ? "Public" : "Private",
+    "Created At": formatDate(transaction.createdAt),
+    "Updated At": formatDate(transaction.updatedAt),
+    "Authors": transaction.authors.map((a) => a.teacher.user.name).join(", "),
+    "authorSet": computeAuthorSet(transaction.authors),
+  };
+}
+
+export function exportTransactionsExcel(
+  transactions: TransactionWithAuthors[],
+  fileName = "Transactions.xlsx"
+) {
+  if (!transactions.length) return;
+
+  const flatRows = transactions.map(flattenTransactions);
+  const headers = Object.keys(flatRows[0]);
+  const sheetData = [
+    headers,
+    ...flatRows.map((row) => headers.map((h) => row[h as keyof typeof row])),
+  ];
+
+  const ws = utils.aoa_to_sheet(sheetData);
+
+  headers.forEach((_, colIndex) => {
+    const headerCell = utils.encode_cell({ r: 0, c: colIndex });
+    if (!ws[headerCell]) return;
+    ws[headerCell].s = {
+      fill: { patternType: "solid", fgColor: { rgb: "FF28a745" } },
+      font: { bold: true, color: { rgb: "FF000000" } },
+      alignment: { vertical: "center", horizontal: "center" },
+    };
+  });
+
+  const colorMap = new Map<string, string>();
+  flatRows.forEach((row, index) => {
+    const excelRow = index + 2;
+    const groupKey = row.authorSet;
+    if (!colorMap.has(groupKey)) {
+      colorMap.set(groupKey, randomPastelColor());
+    }
+    const bg = colorMap.get(groupKey)!;
+    headers.forEach((_, colIndex) => {
+      const cellAddress = utils.encode_cell({ r: excelRow - 1, c: colIndex });
+      if (!ws[cellAddress]) return;
+      ws[cellAddress].s = {
+        fill: { patternType: "solid", fgColor: { rgb: bg } },
+        alignment: { vertical: "center", horizontal: "left" },
+        border: {
+          top: { style: "thin", color: { rgb: "FF000000" } },
+          bottom: { style: "thin", color: { rgb: "FF000000" } },
+          left: { style: "thin", color: { rgb: "FF000000" } },
+          right: { style: "thin", color: { rgb: "FF000000" } },
+        },
+      };
     });
   });
-  
-  return jsonToCSV(allRows);
+
+  const wb: WorkBook = { SheetNames: ["Transactions"], Sheets: { Transactions: ws } };
+  writeFile(wb, fileName);
 }

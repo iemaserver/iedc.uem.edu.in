@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "cockroachdb"
-  url      = env("DATABASE_URL")
+
 }
 
 // =======================================================
@@ -37,7 +37,6 @@ enum SubmissionStatus {
 
 enum AccountProvider {
   GOOGLE
-  GITHUB
   CREDENTIALS
 }
 
@@ -104,7 +103,6 @@ model User {
   name          String
   image         String?
   role          UserRole  @default(STUDENT)
-  isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -136,16 +134,14 @@ model StudentProfile {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   rollNumber String   @unique
-  batch      String
+  enrollmentNumber String @unique
   year       Int
   section    String
   department String
   
   phoneNumber String?
   address     String?
-  dateOfBirth DateTime? @db.Date
-  guardianName String?
-  guardianPhone String?
+  bio         String?
   
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -163,19 +159,14 @@ model TeacherProfile {
   userId            String   @unique
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  employeeId        String   @unique
   department        String
   designation       String
   affiliation       String
-  officialEmail     String?  @unique
   
   phoneNumber       String?
   address           String?
+  bio               String?
   subjectOfInterest String[]
-  qualification     String?
-  experience        Int?     // Years of experience
-  
-  isAvailableForGuidance Boolean @default(true)
   
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -197,7 +188,7 @@ model TeacherProfile {
   reviewedPapers   ResearchPaper[]
 
   @@index([department])
-  @@index([employeeId])
+
 }
 
 // =======================================================
@@ -318,7 +309,6 @@ model TransactionAuthor {
 
 model Conference {
   id                  String            @id @default(uuid())
-  title               String
   conferenceName      String
   mode                String?           // Online / Offline / Hybrid
   typeOfConference    String?

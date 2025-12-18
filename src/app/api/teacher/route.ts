@@ -19,11 +19,7 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get("search");
 
     // Build where clause
-    const where: any = {
-      user: {
-        isActive: true,
-      },
-    };
+    const where: any = {};
 
     if (department) {
       where.department = department;
@@ -33,8 +29,8 @@ export async function GET(req: NextRequest) {
       where.OR = [
         { user: { name: { contains: search, mode: "insensitive" } } },
         { user: { email: { contains: search, mode: "insensitive" } } },
-        { employeeId: { contains: search, mode: "insensitive" } },
         { designation: { contains: search, mode: "insensitive" } },
+        { department: { contains: search, mode: "insensitive" } },
       ];
     }
 

@@ -77,7 +77,7 @@ const Footer: React.FC = () => {
             {/* Using Next.js Image component for the logo */}
             {/* The size-full and w-auto on Image are problematic. Better to explicitly set width/height for next/image */}
             <Image
-              src={"/iedc-logo.jpg"} // Using a placeholder for now as you referred to a local image path. Replace with your actual logo.
+              src={"/iedc-logo.png"} // Using a placeholder for now as you referred to a local image path. Replace with your actual logo.
               alt="IEDC Logo"
               width={100} // Set a fixed width for the image
               height={100} // Set a fixed height for the image

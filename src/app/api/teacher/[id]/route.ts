@@ -9,13 +9,12 @@ const updateSchema = z.object({
   department: z.string().optional(),
   designation: z.string().optional(),
   affiliation: z.string().optional(),
-  officialEmail: z.string().email().optional(),
+
   phoneNumber: z.string().optional(),
   address: z.string().optional(),
+  bio: z.string().optional(),
   subjectOfInterest: z.array(z.string()).optional(),
-  qualification: z.string().optional(),
-  experience: z.number().int().min(0).optional(),
-  isAvailableForGuidance: z.boolean().optional(),
+
 });
 
 // GET: Fetch a particular teacher's profile by ID
@@ -49,7 +48,7 @@ export async function GET(
             email: true,
             image: true,
             role: true,
-            isActive: true,
+          
             createdAt: true,
             updatedAt: true,
           },
@@ -108,7 +107,7 @@ export async function GET(
             conference: {
               select: {
                 id: true,
-                title: true,
+              
                 conferenceName: true,
                 conferenceStartDate: true,
                 location: true,
@@ -298,9 +297,7 @@ export async function GET(
       return NextResponse.json({ error: "Teacher profile not found" }, { status: 404 });
     }
 
-    if (!teacherProfile.user.isActive) {
-      return NextResponse.json({ error: "Teacher profile is inactive" }, { status: 403 });
-    }
+   
 
     // Add research papers and projects to the response
     const enrichedProfile = {
@@ -358,7 +355,7 @@ export async function PATCH(
             email: true,
             image: true,
             role: true,
-            isActive: true,
+            
           },
         },
       },

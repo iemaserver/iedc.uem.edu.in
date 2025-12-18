@@ -1,21 +1,78 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useEffect, useState } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MoreHorizontal, Plus, Loader2, Edit, Trash2, Search, Download, Eye, EyeOff } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  MoreHorizontal,
+  Plus,
+  Edit,
+  Trash2,
+  Search,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
+  Trash,
+  Download,
+} from "lucide-react";
 import { JournalFormDialog } from "./JournalFormDialog";
-import { FilterDialog } from "./FilterDialog";
 import { TablePagination } from "../../TablePagination";
-import { deleteMultipleJournals } from "@/lib/api/teacherApi";
-import { exportToCSV } from "@/lib/csvExport";
-import toast from "react-hot-toast";
+import {
+  fetchJournals,
+  deleteJournal,
+  deleteMultipleJournals,
+} from "@/lib/api/teacherApi";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { exportJournalsExcel } from "@/lib/csvExport";
+import { FilterDialog } from "./FilterDialog";
 
 export function JournalsTable() {
   const [journals, setJournals] = useState<any[]>([]);
@@ -24,263 +81,718 @@ export function JournalsTable() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
-  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [filters, setFilters] = useState({
-    dateRange: { from: "", to: "" },
-    visibility: "all",
-    authorCount: "all",
-    status: "all",
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isMultiDeleteOpen, setIsMultiDeleteOpen] = useState(false);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [titleInput, setTitleInput] = useState<string>("");
+
+  const [filters, setFilters] = useState<{
+    page?: number;
+    limit?: number;
+    all?: boolean;
+    title?: string;
+    isPublic?: boolean;
+    statusAfter?: string;
+    statusBefore?: string;
+    impactFactorAfter?: string;
+    impactFactorBefore?: string;
+    reimbursementAfter?: string;
+    reimbursementBefore?: string;
+    createdAfter?: string;
+    createdBefore?: string;
+    updatedAfter?: string;
+    updatedBefore?: string;
+    teachersName?: string[];
+    sortBy?: string;
+    sortOrder?: "asc" | "desc";
+  }>({
+    page: 1,
+    limit: 10,
+    sortBy: "createdAt",
+    sortOrder: "desc",
   });
 
-  const fetchJournals = async () => {
+  // Debounce title input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilters((prev) => ({
+        ...prev,
+        title: titleInput || undefined,
+        page: 1,
+      }));
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [titleInput]);
+
+  // Fetch data whenever filters change
+  useEffect(() => {
+    fetchJournalsData();
+  }, [filters]);
+
+  const fetchJournalsData = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/teacher/journal");
-      const result = await response.json();
+      const result = await fetchJournals(filters);
       setJournals(result.data || []);
-      setSelectedIds(new Set());
+      setTotalPages(result.pagination.totalPages);
+      setTotalItems(result.pagination.total);
     } catch (error) {
       console.error("Error:", error);
-      toast.error("Failed to fetch journals");
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => { fetchJournals(); }, []);
+  // Filter management functions
+  const updateFilter = (key: string, value: any) => {
+    const updates: any = {
+      ...{ [key]: value },
+    };
+
+    if (key === "page" || key === "limit") {
+      if (key === "page") {
+        updates.all = false;
+      }
+    } else {
+      updates.page = 1;
+    }
+
+    setFilters((prev) => ({
+      ...prev,
+      ...updates,
+    }));
+  };
+
+  const updateFilters = (newFilters: Partial<typeof filters>) => {
+    setFilters((prev) => ({
+      ...prev,
+      ...newFilters,
+      page: 1,
+      all: false,
+    }));
+  };
+
+  const clearFilters = () => {
+    setTitleInput("");
+    setFilters({
+      page: 1,
+      limit: filters.limit || 10,
+      sortBy: "createdAt",
+      sortOrder: "desc",
+      all: false,
+    });
+  };
+
+  const handleSort = (field: string) => {
+    const newOrder =
+      filters.sortBy === field && filters.sortOrder === "asc" ? "desc" : "asc";
+    updateFilters({ sortBy: field, sortOrder: newOrder });
+  };
 
   const handleDelete = async () => {
     if (!deleteId) return;
     try {
-      const response = await fetch(`/api/teacher/journal/${deleteId}`, { method: "DELETE" });
-      if (response.ok) {
-        toast.success("Journal deleted successfully");
-        fetchJournals();
-        setIsDeleteOpen(false);
-        setDeleteId(null);
-      } else {
-        toast.error("Failed to delete journal");
-      }
+      await deleteJournal(deleteId);
+      fetchJournalsData();
+      setIsDeleteOpen(false);
+      setDeleteId(null);
     } catch (error) {
       console.error("Error:", error);
-      toast.error("Failed to delete journal");
     }
   };
 
-  const handleBulkDelete = async () => {
-    if (selectedIds.size === 0) return;
-    setIsBulkDeleting(true);
+  const handleMultiDelete = async () => {
+    if (selectedIds.length === 0) return;
     try {
-      await deleteMultipleJournals(Array.from(selectedIds));
-      toast.success(`${selectedIds.size} journals deleted successfully`);
-      fetchJournals();
-      setIsBulkDeleteOpen(false);
-    } catch (error: any) {
-      console.error("Bulk delete error:", error);
-      toast.error(error.message || "Failed to delete journals");
-    } finally {
-      setIsBulkDeleting(false);
+      await deleteMultipleJournals(selectedIds);
+      fetchJournalsData();
+      setSelectedIds([]);
+      setIsMultiDeleteOpen(false);
+    } catch (error) {
+      console.error("Error:", error);
     }
-  };
-
-  const toggleSelection = (id: string) => {
-    const newSelected = new Set(selectedIds);
-    if (newSelected.has(id)) newSelected.delete(id);
-    else newSelected.add(id);
-    setSelectedIds(newSelected);
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === paginatedJournals.length) setSelectedIds(new Set());
-    else setSelectedIds(new Set(paginatedJournals.map(j => j.id)));
+    const allPageIds = journals.map((j) => j.id);
+    const allSelected = allPageIds.every((id) => selectedIds.includes(id));
+
+    if (allSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !allPageIds.includes(id)));
+    } else {
+      setSelectedIds((prev) => [...new Set([...prev, ...allPageIds])]);
+    }
   };
 
-  const filteredJournals = useMemo(() => {
-    let filtered = journals.filter(journal => {
-      const matchesSearch = searchTerm === "" || 
-        journal.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        journal.journalName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        journal.publisher?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        journal.impactFactor?.toString().includes(searchTerm);
-      
-      const matchesVisibility = filters.visibility === "all" || 
-        (filters.visibility === "public" && journal.isPublic) ||
-        (filters.visibility === "private" && !journal.isPublic);
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
 
-      const matchesStatus = filters.status === "all" || journal.status === filters.status;
+  const clearAllSelections = () => {
+    setSelectedIds([]);
+  };
 
-      const authorCount = journal.authors?.length || 0;
-      const matchesAuthorCount = filters.authorCount === "all" ||
-        (filters.authorCount === "1" && authorCount === 1) ||
-        (filters.authorCount === "2-3" && authorCount >= 2 && authorCount <= 3) ||
-        (filters.authorCount === "4+" && authorCount >= 4);
-      
-      const journalDate = journal.statusDate ? new Date(journal.statusDate) : null;
-      const matchesDateFrom = !filters.dateRange.from || !journalDate || journalDate >= new Date(filters.dateRange.from);
-      const matchesDateTo = !filters.dateRange.to || !journalDate || journalDate <= new Date(filters.dateRange.to + "T23:59:59");
-      
-      return matchesSearch && matchesVisibility && matchesStatus && matchesAuthorCount && matchesDateFrom && matchesDateTo;
+  // Count active filters
+  const activeFilterCount = Object.entries(filters).filter(
+    ([key, value]) =>
+      !["page", "limit", "sortBy", "sortOrder"].includes(key) &&
+      value !== undefined &&
+      value !== "" &&
+      !(Array.isArray(value) && value.length === 0)
+  ).length;
+
+  const formatDate = (date: Date | string) => {
+    return new Date(date).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
-    return filtered;
-  }, [journals, searchTerm, filters]);
-
-  const totalPages = Math.ceil(filteredJournals.length / itemsPerPage);
-  const paginatedJournals = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredJournals.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredJournals, currentPage, itemsPerPage]);
-
-  useEffect(() => { setCurrentPage(1); }, [searchTerm, filters]);
-
-  const handleExportCSV = () => {
-    const selectedJournals = journals.filter(j => selectedIds.has(j.id));
-    const dataToExport = selectedJournals.length > 0 ? selectedJournals : filteredJournals;
-    
-    const csvData = dataToExport.map(journal => ({
-      Title: journal.title,
-      "Journal Name": journal.journalName || "",
-      "Type of Journal": journal.typeOfJournal || "",
-      "Index": journal.indexOfJournal || "",
-      "Impact Factor": journal.impactFactor || "",
-      "Impact Factor Date": journal.impactFactorDate ? new Date(journal.impactFactorDate).toLocaleDateString() : "",
-      Publisher: journal.publisher || "",
-      Status: journal.status || "",
-      "Status Date": journal.statusDate ? new Date(journal.statusDate).toLocaleDateString() : "",
-      "DOI/Link": journal.paperLinkDOI || "",
-      "Registration Fees": journal.registrationFees || "",
-      "Reimbursement Status": journal.reimbursementStatus || "",
-      "Reimbursement Date": journal.reimbursementDate ? new Date(journal.reimbursementDate).toLocaleDateString() : "",
-      Visibility: journal.isPublic ? "Public" : "Private",
-      "Author Count": journal.authors?.length || 0,
-    }));
-    
-    exportToCSV(csvData, `journals_${new Date().toISOString().split('T')[0]}.csv`);
-    toast.success(`Exported ${csvData.length} journals to CSV`);
   };
 
-  if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (isLoading && journals.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center flex-wrap gap-4">
-        <div>
-          <h2 className="text-2xl font-bold">Journal Publications</h2>
-          <p className="text-muted-foreground">Track your journal publications</p>
-        </div>
-        <Button onClick={() => { setSelectedJournal(null); setIsFormOpen(true); }}>
-          <Plus className="mr-2 h-4 w-4" />Add Journal
-        </Button>
-      </div>
+    <div className="w-full">
+      <Card className="w-full bg-gradient-to-br from-blue-50/50 via-white to-cyan-50/50 dark:from-blue-950/20 dark:via-background dark:to-cyan-950/20 border-blue-200/50 dark:border-blue-800/30">
+        <CardHeader className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+            <div className="space-y-2">
+              <CardTitle
+                className="text-2xl sm:text-3xl font-bold"
+                style={{
+                  background:
+                    "linear-gradient(to right, var(--first-color), var(--second-color))",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
+              >
+                Journals
+              </CardTitle>
+              <CardDescription className="text-sm sm:text-base">
+                Manage your journal publications and research papers
+              </CardDescription>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              {selectedIds.length > 0 && (
+                <Button
+                  onClick={() => setIsMultiDeleteOpen(true)}
+                  variant="destructive"
+                  className="gap-2 w-full sm:w-auto"
+                  size="sm"
+                >
+                  <Trash className="h-4 w-4" />
+                  Delete ({selectedIds.length})
+                </Button>
+              )}
+              <Button
+                onClick={() => exportJournalsExcel(journals, "journals.xlsx")}
+                variant="outline"
+                className="w-full sm:w-auto gap-2"
+                size="sm"
+                style={{
+                  borderColor: "var(--third-color)",
+                  color: "var(--first-color)",
+                }}
+              >
+                <Download className="h-4 w-4" />
+                Export CSV
+              </Button>
+              <Button
+                onClick={() => {
+                  setSelectedJournal(null);
+                  setIsFormOpen(true);
+                }}
+                className="w-full sm:w-auto"
+                size="sm"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Journal
+              </Button>
+            </div>
+          </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-center">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by title, journal name, publisher, or impact factor..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
-        </div>
-        <FilterDialog filters={filters} onFiltersChange={setFilters} />
-        <Select value={itemsPerPage.toString()} onValueChange={(val) => setItemsPerPage(Number(val))}>
-          <SelectTrigger className="w-full sm:w-[120px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="5">5 per page</SelectItem>
-            <SelectItem value="10">10 per page</SelectItem>
-            <SelectItem value="25">25 per page</SelectItem>
-            <SelectItem value="50">50 per page</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+            <div className="relative flex-1 hidden md:block">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by title..."
+                value={titleInput}
+                onChange={(e) => setTitleInput(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <FilterDialog
+              filters={filters}
+              onFiltersChange={updateFilters}
+              onClearFilters={clearFilters}
+            />
 
-      {selectedIds.size > 0 && (
-        <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-          <span className="text-sm font-medium">{selectedIds.size} selected</span>
-          <Button size="sm" variant="outline" onClick={handleExportCSV}><Download className="h-4 w-4 mr-2" />Export Selected</Button>
-          <Button size="sm" variant="destructive" onClick={() => setIsBulkDeleteOpen(true)}><Trash2 className="h-4 w-4 mr-2" />Delete Selected</Button>
-        </div>
-      )}
+            <Select
+              value={
+                filters.isPublic === undefined
+                  ? "all"
+                  : filters.isPublic
+                    ? "public"
+                    : "private"
+              }
+              onValueChange={(value) =>
+                updateFilter(
+                  "isPublic",
+                  value === "all" ? undefined : value === "public"
+                )
+              }
+            >
+              <SelectTrigger className="w-full sm:w-[180px] hidden md:flex">
+                <SelectValue placeholder="Filter by visibility" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Visibility</SelectItem>
+                <SelectItem value="public">Public</SelectItem>
+                <SelectItem value="private">Private</SelectItem>
+              </SelectContent>
+            </Select>
 
-      <div className="w-full overflow-auto rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12 sticky left-0 bg-background z-10">
-                <Checkbox checked={selectedIds.size === paginatedJournals.length && paginatedJournals.length > 0} onCheckedChange={toggleSelectAll} />
-              </TableHead>
-              <TableHead className="min-w-[250px] sticky left-12 bg-background z-10">Title</TableHead>
-              <TableHead className="min-w-[180px]">Journal Name</TableHead>
-              <TableHead className="min-w-[120px]">Impact Factor</TableHead>
-              <TableHead className="min-w-[100px]">Status</TableHead>
-              <TableHead className="min-w-[130px]">Status Date</TableHead>
-              <TableHead className="min-w-[120px]">Authors</TableHead>
-              <TableHead className="min-w-[100px]">Visibility</TableHead>
-              <TableHead className="text-right whitespace-nowrap sticky right-0 bg-background z-10">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginatedJournals.length === 0 ? (
-              <TableRow><TableCell colSpan={9} className="text-center h-24">{searchTerm || filters.visibility !== "all" || filters.status !== "all" ? "No journals match your filters." : "No journals found."}</TableCell></TableRow>
-            ) : (
-              paginatedJournals.map((journal) => (
-                <TableRow key={journal.id} className={selectedIds.has(journal.id) ? "bg-muted/50" : ""}>
-                  <TableCell className="sticky left-0 bg-background">
-                    <Checkbox checked={selectedIds.has(journal.id)} onCheckedChange={() => toggleSelection(journal.id)} />
-                  </TableCell>
-                  <TableCell className="font-medium sticky left-12 bg-background">{journal.title}</TableCell>
-                  <TableCell className="whitespace-nowrap">{journal.journalName}</TableCell>
-                  <TableCell className="whitespace-nowrap">{journal.impactFactor || "N/A"}</TableCell>
-                  <TableCell className="whitespace-nowrap"><Badge>{journal.status}</Badge></TableCell>
-                  <TableCell className="whitespace-nowrap">{new Date(journal.statusDate).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {journal.authors?.slice(0, 2).map((author: any, idx: number) => (
-                        <Badge key={idx} variant="outline" className="text-xs">{author.teacher?.user?.name || "Author"}</Badge>
-                      ))}
-                      {journal.authors?.length > 2 && <Badge variant="secondary" className="text-xs">+{journal.authors.length - 2}</Badge>}
-                    </div>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {journal.isPublic ? <Badge variant="default" className="bg-green-600"><Eye className="h-3 w-3 mr-1" />Public</Badge> : <Badge variant="secondary"><EyeOff className="h-3 w-3 mr-1" />Private</Badge>}
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap sticky right-0 bg-background">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => { setSelectedJournal(journal); setIsFormOpen(true); }}><Edit className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => { setDeleteId(journal.id); setIsDeleteOpen(true); }} className="text-red-600"><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+            <div className="flex items-center gap-4 border rounded-md px-3 py-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="all-records"
+                  checked={filters.all || false}
+                  onCheckedChange={(checked) =>
+                    updateFilter("all", checked === true)
+                  }
+                />
+                <label
+                  htmlFor="all-records"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                >
+                  Show All Records
+                </label>
+              </div>
+            </div>
+
+            <Select
+              value={filters.limit?.toString() || "10"}
+              onValueChange={(val) => updateFilter("limit", Number(val))}
+            >
+              <SelectTrigger className="w-full sm:w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5 per page</SelectItem>
+                <SelectItem value="10">10 per page</SelectItem>
+                <SelectItem value="25">25 per page</SelectItem>
+                <SelectItem value="50">50 per page</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {selectedIds.length > 0 && (
+            <div
+              className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-lg border-2"
+              style={{
+                borderColor: "var(--third-color)",
+                backgroundColor: "var(--forth-color)",
+              }}
+            >
+              <div className="flex items-center gap-3 flex-wrap">
+                <Badge
+                  variant="secondary"
+                  className="text-sm font-semibold px-3 py-1"
+                  style={{
+                    background:
+                      "linear-gradient(to right, var(--first-color), var(--second-color))",
+                    color: "white",
+                  }}
+                >
+                  {selectedIds.length} Selected
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearAllSelections}
+                  className="text-xs"
+                >
+                  Clear Selection
+                </Button>
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setIsMultiDeleteOpen(true)}
+                className="gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Selected
+              </Button>
+            </div>
+          )}
+        </CardHeader>
+
+        <CardContent className="p-0">
+          <div className="w-full overflow-x-auto custom-scrollbar">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={
+                        journals.length > 0 &&
+                        journals.every((j) => selectedIds.includes(j.id))
+                      }
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </TableHead>
+                  <TableHead className="min-w-[250px]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort("title")}
+                      className="h-8 px-2 hover:bg-muted/50"
+                    >
+                      Title
+                      {filters.sortBy === "title" &&
+                        (filters.sortOrder === "asc" ? (
+                          <ChevronUp className="ml-2 h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="ml-2 h-4 w-4" />
+                        ))}
+                      {filters.sortBy !== "title" && (
+                        <ChevronsUpDown className="ml-2 h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="min-w-[150px]">Authors</TableHead>
+                  <TableHead className="min-w-[180px]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort("journalName")}
+                      className="h-8 px-2 hover:bg-muted/50"
+                    >
+                      Journal Name
+                      {filters.sortBy === "journalName" &&
+                        (filters.sortOrder === "asc" ? (
+                          <ChevronUp className="ml-2 h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="ml-2 h-4 w-4" />
+                        ))}
+                      {filters.sortBy !== "journalName" && (
+                        <ChevronsUpDown className="ml-2 h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="min-w-[120px]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort("status")}
+                      className="h-8 px-2 hover:bg-muted/50"
+                    >
+                      Status
+                      {filters.sortBy === "status" &&
+                        (filters.sortOrder === "asc" ? (
+                          <ChevronUp className="ml-2 h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="ml-2 h-4 w-4" />
+                        ))}
+                      {filters.sortBy !== "status" && (
+                        <ChevronsUpDown className="ml-2 h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="min-w-[120px]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort("statusDate")}
+                      className="h-8 px-2 hover:bg-muted/50"
+                    >
+                      Status Date
+                      {filters.sortBy === "statusDate" &&
+                        (filters.sortOrder === "asc" ? (
+                          <ChevronUp className="ml-2 h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="ml-2 h-4 w-4" />
+                        ))}
+                      {filters.sortBy !== "statusDate" && (
+                        <ChevronsUpDown className="ml-2 h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="min-w-[120px]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort("impactFactor")}
+                      className="h-8 px-2 hover:bg-muted/50"
+                    >
+                      Impact Factor
+                      {filters.sortBy === "impactFactor" &&
+                        (filters.sortOrder === "asc" ? (
+                          <ChevronUp className="ml-2 h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="ml-2 h-4 w-4" />
+                        ))}
+                      {filters.sortBy !== "impactFactor" && (
+                        <ChevronsUpDown className="ml-2 h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </TableHead>
+
+                  <TableHead className="min-w-[100px]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort("isPublic")}
+                      className="h-8 px-2 hover:bg-muted/50"
+                    >
+                      Visibility
+                      {filters.sortBy === "isPublic" &&
+                        (filters.sortOrder === "asc" ? (
+                          <ChevronUp className="ml-2 h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="ml-2 h-4 w-4" />
+                        ))}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="min-w-[130px]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort("createdAt")}
+                      className="h-8 px-2 hover:bg-muted/50"
+                    >
+                      Created At
+                      {filters.sortBy === "createdAt" &&
+                        (filters.sortOrder === "asc" ? (
+                          <ChevronUp className="ml-2 h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="ml-2 h-4 w-4" />
+                        ))}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="w-20">Actions</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center py-8">
+                      <div className="flex items-center justify-center">
+                        <div className="h-6 w-6 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : journals.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={10}
+                      className="text-center py-8 text-muted-foreground"
+                    >
+                      {activeFilterCount > 0
+                        ? "No journals match your filters."
+                        : "No journals found. Create your first one!"}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  journals.map((journal) => {
+                    return (
+                      <TableRow key={journal.id} className="hover:bg-muted/50">
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selectedIds.includes(journal.id)}
+                            onCheckedChange={() => toggleSelectOne(journal.id)}
+                            aria-label={`Select ${journal.title}`}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium max-w-sm">
+                          <div className="line-clamp-2" title={journal.title}>
+                            {journal.title}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <TooltipProvider>
+                            <div className="flex -space-x-2">
+                              {journal.authors
+                                ?.slice(0, 3)
+                                .map((author: any) => (
+                                  <Tooltip key={author.id}>
+                                    <TooltipTrigger>
+                                      <Avatar className="w-8 h-8 border-2 border-background">
+                                        <AvatarImage
+                                          src={author.teacher?.user?.image}
+                                        />
+                                        <AvatarFallback>
+                                          {author.teacher?.user?.name?.charAt(
+                                            0
+                                          ) || "?"}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {author.teacher?.user?.name || "Unknown"}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                ))}
+                              {journal.authors && journal.authors.length > 3 && (
+                                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs border-2 border-background">
+                                  +{journal.authors.length - 3}
+                                </div>
+                              )}
+                              {(!journal.authors ||
+                                journal.authors.length === 0) && (
+                                <span className="text-xs text-muted-foreground">
+                                  No authors
+                                </span>
+                              )}
+                            </div>
+                          </TooltipProvider>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {journal.journalName || "N/A"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className="capitalize text-xs"
+                          >
+                            {journal.status || "PENDING"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {journal.statusDate
+                            ? formatDate(journal.statusDate)
+                            : "N/A"}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {journal.impactFactor
+                            ? journal.impactFactor.toFixed(2)
+                            : "N/A"}
+                        </TableCell>
 
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <Button variant="outline" onClick={handleExportCSV} size="sm"><Download className="h-4 w-4 mr-2" />Export to CSV</Button>
-        <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={filteredJournals.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />
-      </div>
+                        <TableCell>
+                          <Badge
+                            variant={journal.isPublic ? "default" : "secondary"}
+                            className="text-xs"
+                            style={
+                              journal.isPublic
+                                ? {
+                                    background:
+                                      "linear-gradient(to right, var(--first-color), var(--second-color))",
+                                    color: "white",
+                                  }
+                                : {}
+                            }
+                          >
+                            {journal.isPublic ? "Public" : "Private"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {formatDate(journal.createdAt)}
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedJournal(journal);
+                                  setIsFormOpen(true);
+                                }}
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setDeleteId(journal.id);
+                                  setIsDeleteOpen(true);
+                                }}
+                                className="text-red-600 focus:text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
-      <JournalFormDialog open={isFormOpen} onOpenChange={setIsFormOpen} journal={selectedJournal} onSuccess={fetchJournals} />
-      
+          <div className="mt-4 px-4 pb-4">
+            <TablePagination
+              currentPage={filters.page || 1}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={filters.limit || 10}
+              onPageChange={(page) => updateFilter("page", page)}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <JournalFormDialog
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        journal={selectedJournal}
+        onSuccess={fetchJournalsData}
+      />
+
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the journal entry.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the journal entry.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
+      <AlertDialog open={isMultiDeleteOpen} onOpenChange={setIsMultiDeleteOpen}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Delete {selectedIds.size} Journals?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete the selected journals.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting}>{isBulkDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Delete</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Multiple Journals?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {selectedIds.length} journal
+              {selectedIds.length > 1 ? "s" : ""}. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleMultiDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete {selectedIds.length} Item
+              {selectedIds.length > 1 ? "s" : ""}
+            </AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>

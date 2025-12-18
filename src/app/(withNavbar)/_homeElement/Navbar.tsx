@@ -136,10 +136,10 @@ const Navbar: React.FC = () => {
   const handleToggle = () => {
     setOpen(!open);
   };
-  const {data:session} = useSession();
-  useEffect(()=>{
+  const { data: session } = useSession();
+  useEffect(() => {
     console.log("Session Data: ", session);
-  },[session])
+  }, [session]);
 
   return (
     <nav className=" shadow-lg sticky top-0 z-50 w-screen bg-white">
@@ -154,7 +154,7 @@ const Navbar: React.FC = () => {
           <div className="flex  justify-center items-center gap-6">
             <div className="md:h-24 h-14 w-14 md:w-24  flex items-center justify-center font-bold text-gray-700 rounded-full overflow-hidden">
               <Image
-                src="/iedc-logo.jpg"
+                src="/iedc-logo.png"
                 alt="IEDC Logo"
                 width={100}
                 height={100}
@@ -189,38 +189,56 @@ const Navbar: React.FC = () => {
               <Button variant="ghost" size="icon">
                 <Search className="h-5 w-5" />
               </Button>
-              {
-                session?.user?(
-
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <div className="w-10 h-10 rounded-full overflow-hidden cursor-pointer"><Image src={session.user.image||"/default-image.png"} alt={session.user.name||"logo"} width={50} height={50} className="" /></div>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-
-                      <DropdownMenuItem >
-
-                        <Link href="/dashboard"><IconDashboard className="inline-block mr-3 size-6"/>Dashboard</Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator/>
-                      <DropdownMenuItem ><Link href="/dashboard/paper/upload"><Upload className="inline-block mr-3 size-6"/>Upload Research Paper</Link></DropdownMenuItem>
-                      <DropdownMenuSeparator/>
-                      <DropdownMenuItem ><Link href="/dashboard/paper/project"><Upload className="inline-block mr-3 size-6"/>Upload Ongoing Project</Link></DropdownMenuItem>
-                      <DropdownMenuSeparator/>
-                      <DropdownMenuItem onClick={() => signOut()} className="bg-red-400 border border-black rounded-md">Sign Out</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  
-                ):(
-   <Button variant="ghost" size="icon">
-                <Link href={'/signup'}>
-                <User className="h-5 w-5" />
-                </Link>
-              </Button>
-                )
-              }
-           
+              {session?.user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <div className="w-10 h-10 rounded-full overflow-hidden cursor-pointer">
+                      <Image
+                        src={session.user.image || "/default-image.png"}
+                        alt={session.user.name || "logo"}
+                        width={50}
+                        height={50}
+                        className=""
+                      />
+                    </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem>
+                      <Link href="/dashboard">
+                        <IconDashboard className="inline-block mr-3 size-6" />
+                        Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem>
+                      <Link href="/dashboard/paper/upload">
+                        <Upload className="inline-block mr-3 size-6" />
+                        Upload Research Paper
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem>
+                      <Link href="/dashboard/paper/project">
+                        <Upload className="inline-block mr-3 size-6" />
+                        Upload Ongoing Project
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => signOut()}
+                      className="bg-red-400 border border-black rounded-md"
+                    >
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Button variant="ghost" size="icon">
+                  <Link href={"/signup"}>
+                    <User className="h-5 w-5" />
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
 
@@ -237,7 +255,7 @@ const Navbar: React.FC = () => {
 
             <div className="w-14 h-14  rounded-full flex-shrink-0 overflow-hidden">
               <Image
-                src="/iedc-logo.jpg"
+                src="/iedc-logo.png"
                 alt="IEDC Logo"
                 width={100}
                 height={100}

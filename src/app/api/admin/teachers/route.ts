@@ -25,7 +25,8 @@ export async function GET(req: NextRequest) {
       where.OR = [
         { user: { name: { contains: search, mode: "insensitive" } } },
         { user: { email: { contains: search, mode: "insensitive" } } },
-        { employeeId: { contains: search, mode: "insensitive" } },
+        { department: { contains: search, mode: "insensitive" } },
+        { designation: { contains: search, mode: "insensitive" } },
       ];
     }
 
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
               name: true,
               email: true,
               role: true,
-              isActive: true,
+           
               createdAt: true,
             },
           },

@@ -8,49 +8,35 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MoreHorizontal, Loader2, Edit, Trash2, ArrowUpDown, Trash, Eye } from "lucide-react";
+import { MoreHorizontal, Loader2, Edit, Trash2, ArrowUpDown, Trash, Eye, FileText, User, Users, CheckCircle, XCircle, AlertCircle, Clock, ChevronUp, ChevronDown, ChevronsUpDown, Search, Filter, Download, X } from "lucide-react";
 import { TablePagination } from "../../TablePagination";
-import { exportToCSV } from "@/lib/csvExport";
+
 import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import axios from "axios";
 import toast from "react-hot-toast";
 
-export function ResearchPapersTable() {
-  const [papers, setPapers] = useState<any[]>([]);
+export function ResearchPapersTable({papers}: {papers: any[]}) {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isMultiDeleteOpen, setIsMultiDeleteOpen] = useState(false);
   
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [sortField, setSortField] = useState<string>("title");
+  const [sortField, setSortField] = useState<string>("updatedAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const fetchPapers = async () => {
-    setIsLoading(true);
-    try {
-      const response = await axios.get("/api/research-paper");
-      setPapers(response.data.data || []);
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Failed to fetch research papers");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchPapers(); }, []);
 
   const handleDelete = async () => {
     if (!deleteId) return;
     try {
       await axios.delete(`/api/research-paper/${deleteId}`);
       toast.success("Research paper deleted successfully");
-      fetchPapers();
       setIsDeleteOpen(false);
       setDeleteId(null);
     } catch (error) {
@@ -64,7 +50,6 @@ export function ResearchPapersTable() {
     try {
       await Promise.all(selectedIds.map(id => axios.delete(`/api/research-paper/${id}`)));
       toast.success(`${selectedIds.length} research papers deleted successfully`);
-      fetchPapers();
       setSelectedIds([]);
       setIsMultiDeleteOpen(false);
     } catch (error) {
@@ -74,11 +59,24 @@ export function ResearchPapersTable() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === paginatedPapers.length) {
-      setSelectedIds([]);
+    const allPageIds = paginatedPapers.map((p) => p.id);
+    const allSelected = allPageIds.every(id => selectedIds.includes(id));
+    
+    if (allSelected) {
+      // Deselect all from current page
+      setSelectedIds(prev => prev.filter(id => !allPageIds.includes(id)));
     } else {
-      setSelectedIds(paginatedPapers.map((p) => p.id));
+      // Select all from current page
+      setSelectedIds(prev => [...new Set([...prev, ...allPageIds])]);
     }
+  };
+
+  const selectAllPages = () => {
+    setSelectedIds(filteredAndSortedPapers.map((p) => p.id));
+  };
+
+  const clearAllSelections = () => {
+    setSelectedIds([]);
   };
 
   const toggleSelectOne = (id: string) => {
@@ -98,16 +96,23 @@ export function ResearchPapersTable() {
   const filteredAndSortedPapers = useMemo(() => {
     let filtered = papers.filter(paper => {
       const matchesStatus = statusFilter === "all" || paper.status === statusFilter;
-      return matchesStatus;
+      const matchesSearch = !searchQuery || 
+        paper.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        paper.student?.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        paper.keywords?.some((k: string) => k.toLowerCase().includes(searchQuery.toLowerCase()));
+      return matchesStatus && matchesSearch;
     });
 
     filtered.sort((a, b) => {
       let aVal = a[sortField];
       let bVal = b[sortField];
       
-      if (sortField === "createdAt" || sortField === "submittedAt") {
+      if (sortField === "createdAt" || sortField === "submittedAt" || sortField === "updatedAt") {
         aVal = aVal ? new Date(aVal).getTime() : 0;
         bVal = bVal ? new Date(bVal).getTime() : 0;
+      } else if (sortField === "members") {
+        aVal = a.members?.length || 0;
+        bVal = b.members?.length || 0;
       } else {
         aVal = aVal?.toString().toLowerCase() || "";
         bVal = bVal?.toString().toLowerCase() || "";
@@ -118,7 +123,7 @@ export function ResearchPapersTable() {
       return 0;
     });
     return filtered;
-  }, [papers, statusFilter, sortField, sortOrder]);
+  }, [papers, statusFilter, searchQuery, sortField, sortOrder]);
 
   const totalPages = Math.ceil(filteredAndSortedPapers.length / itemsPerPage);
   const paginatedPapers = useMemo(() => {
@@ -144,19 +149,77 @@ export function ResearchPapersTable() {
     }
   };
 
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case "APPROVED":
-        return "default";
-      case "UNDER_REVIEW":
-        return "secondary";
-      case "REJECTED":
-        return "destructive";
-      case "PUBLISHED":
-        return "default";
-      default:
-        return "outline";
-    }
+  const getStatusBadge = (status: string) => {
+    const statusConfig: any = {
+      DRAFT: { 
+        icon: FileText, 
+        label: "Draft", 
+        bgColor: 'var(--forth-color)',
+        textColor: 'var(--first-color)',
+        borderColor: 'var(--third-color)'
+      },
+      SUBMITTED: { 
+        icon: AlertCircle, 
+        label: "Submitted", 
+        bgColor: 'var(--third-color)',
+        textColor: 'var(--first-color)',
+        borderColor: 'var(--second-color)'
+      },
+      UNDER_REVIEW: { 
+        icon: Eye, 
+        label: "Under Review", 
+        bgColor: '#FEF3C7',
+        textColor: '#92400E',
+        borderColor: '#FCD34D'
+      },
+      APPROVED: { 
+        icon: CheckCircle, 
+        label: "Approved", 
+        bgColor: '#D1FAE5',
+        textColor: '#065F46',
+        borderColor: '#34D399'
+      },
+      REJECTED: { 
+        icon: XCircle, 
+        label: "Rejected", 
+        bgColor: '#FEE2E2',
+        textColor: '#991B1B',
+        borderColor: '#F87171'
+      },
+      PUBLISHED: { 
+        icon: CheckCircle, 
+        label: "Published", 
+        bgColor: 'var(--second-color)',
+        textColor: 'white',
+        borderColor: 'var(--first-color)'
+      },
+    };
+
+    const config = statusConfig[status] || statusConfig.DRAFT;
+    const StatusIcon = config.icon;
+
+    return (
+      <Badge 
+        variant="outline" 
+        className="font-semibold border"
+        style={{
+          backgroundColor: config.bgColor,
+          color: config.textColor,
+          borderColor: config.borderColor
+        }}
+      >
+        <StatusIcon className="h-3.5 w-3.5 mr-1.5" />
+        {config.label}
+      </Badge>
+    );
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   };
 
   const handleViewPaper = (paperId: string) => {
@@ -167,200 +230,405 @@ export function ResearchPapersTable() {
     try {
       await axios.put(`/api/research-paper/${paperId}`, { status: newStatus });
       toast.success("Status updated successfully");
-      fetchPapers();
+    
     } catch (error) {
       console.error("Error:", error);
       toast.error("Failed to update status");
     }
   };
 
-  if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-
+  
   return (
-    <div className="space-y-4 p-2 sm:p-4">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold">Research Papers</h2>
-          <p className="text-sm text-muted-foreground">Review and manage student research papers</p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2">
+    <div className="w-full">
+      <Card className="w-full bg-gradient-to-br from-green-50/50 via-white to-teal-50/50">
+        <CardHeader className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+            <div className="space-y-2">
+              <CardTitle className="text-2xl sm:text-3xl font-bold" style={{ background: 'linear-gradient(to right, var(--first-color), var(--second-color))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                Student Research Papers
+              </CardTitle>
+              <CardDescription className="text-sm sm:text-base">
+                Review and manage student research paper submissions
+              </CardDescription>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              {selectedIds.length > 0 && (
+                <Button 
+                  onClick={() => setIsMultiDeleteOpen(true)} 
+                  variant="destructive" 
+                  className="gap-2 w-full sm:w-auto"
+                  size="sm"
+                >
+                  <Trash className="h-4 w-4" />
+                  Delete ({selectedIds.length})
+                </Button>
+              )}
+             
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by title, student, or keywords..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                {uniqueStatuses.map(status => (
+                  <SelectItem key={status.value} value={status.value}>
+                    {status.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={itemsPerPage.toString()} onValueChange={(val) => setItemsPerPage(Number(val))}>
+              <SelectTrigger className="w-full sm:w-[140px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5 per page</SelectItem>
+                <SelectItem value="10">10 per page</SelectItem>
+                <SelectItem value="25">25 per page</SelectItem>
+                <SelectItem value="50">50 per page</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Bulk Selection Actions */}
           {selectedIds.length > 0 && (
-            <Button 
-              onClick={() => setIsMultiDeleteOpen(true)} 
-              variant="destructive" 
-              className="gap-2 w-full sm:w-auto"
-            >
-              <Trash className="h-4 w-4" />
-              Delete ({selectedIds.length})
-            </Button>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-lg border-2" style={{ borderColor: 'var(--third-color)', backgroundColor: 'var(--forth-color)' }}>
+              <div className="flex items-center gap-3 flex-wrap">
+                <Badge variant="secondary" className="text-sm font-semibold px-3 py-1" style={{ background: 'linear-gradient(to right, var(--first-color), var(--second-color))', color: 'white' }}>
+                  {selectedIds.length} Selected
+                </Badge>
+                {selectedIds.length < filteredAndSortedPapers.length && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={selectAllPages}
+                    className="text-xs"
+                  >
+                    Select All {filteredAndSortedPapers.length} Papers
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearAllSelections}
+                  className="text-xs"
+                >
+                  Clear Selection
+                </Button>
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setIsMultiDeleteOpen(true)}
+                className="gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Selected
+              </Button>
+            </div>
           )}
-          <Button onClick={() => exportToCSV(filteredAndSortedPapers, "research_papers")} variant="outline" className="w-full sm:w-auto bg-green-300 text-black font-semibold hover:bg-green-400 border-green-500 border">
-            Export CSV
-          </Button>
-        </div>
-      </div>
+        </CardHeader>
+       
 
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            {uniqueStatuses.map(status => (
-              <SelectItem key={status.value} value={status.value}>
-                {status.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={itemsPerPage.toString()} onValueChange={(val) => setItemsPerPage(Number(val))}>
-          <SelectTrigger className="w-full sm:w-[160px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="5">5 per page</SelectItem>
-            <SelectItem value="10">10 per page</SelectItem>
-            <SelectItem value="25">25 per page</SelectItem>
-            <SelectItem value="50">50 per page</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+         <CardContent className="p-0">
 
-      <div className="w-full overflow-x-auto rounded-md border">
-        <Table className="min-w-[800px]">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[40px] sm:w-[50px] sticky left-0 bg-background z-10">
-                <Checkbox
-                  checked={selectedIds.length === paginatedPapers.length && paginatedPapers.length > 0}
-                  onCheckedChange={toggleSelectAll}
-                  aria-label="Select all"
-                />
-              </TableHead>
-              <TableHead className="whitespace-nowrap min-w-[200px]">
-                <Button variant="ghost" onClick={() => handleSort("title")} className="h-8 px-1 sm:px-2 text-xs sm:text-sm">
-                  Title <ArrowUpDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
-                </Button>
-              </TableHead>
-              <TableHead className="whitespace-nowrap min-w-[150px]">Student</TableHead>
-              <TableHead className="whitespace-nowrap min-w-[130px]">Members</TableHead>
-              <TableHead className="whitespace-nowrap min-w-[120px]">
-                <Button variant="ghost" onClick={() => handleSort("status")} className="h-8 px-1 sm:px-2 text-xs sm:text-sm">
-                  Status <ArrowUpDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
-                </Button>
-              </TableHead>
-              <TableHead className="whitespace-nowrap min-w-[150px]">
-                <Button variant="ghost" onClick={() => handleSort("submittedAt")} className="h-8 px-1 sm:px-2 text-xs sm:text-sm">
-                  Submitted <ArrowUpDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
-                </Button>
-              </TableHead>
-              <TableHead className="whitespace-nowrap min-w-[120px]">Keywords</TableHead>
-              <TableHead className="text-right whitespace-nowrap min-w-[80px] sticky right-0 bg-background z-10">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginatedPapers.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center h-24">
-                  {statusFilter !== "all" ? "No research papers match your filters." : "No research papers found."}
-                </TableCell>
-              </TableRow>
-            ) : (
-              paginatedPapers.map((paper) => (
-                <TableRow key={paper.id}>
-                  <TableCell className="sticky left-0 bg-background z-10">
+          <div className="w-full overflow-x-auto custom-scrollbar" style={{
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'var(--second-color) var(--forth-color)'
+          }}>
+            <style jsx>{`
+              .custom-scrollbar::-webkit-scrollbar {
+                height: 8px;
+              }
+              .custom-scrollbar::-webkit-scrollbar-track {
+                background: var(--forth-color);
+                border-radius: 10px;
+              }
+              .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: linear-gradient(to right, var(--first-color), var(--second-color));
+                border-radius: 10px;
+              }
+              .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                background: linear-gradient(to right, var(--second-color), var(--third-color));
+              }
+            `}</style>
+            <Table className="min-w-sm">
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-12">
                     <Checkbox
-                      checked={selectedIds.includes(paper.id)}
-                      onCheckedChange={() => toggleSelectOne(paper.id)}
-                      aria-label={`Select ${paper.title}`}
+                      checked={paginatedPapers.length > 0 && paginatedPapers.every(p => selectedIds.includes(p.id))}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all on this page"
                     />
-                  </TableCell>
-                  <TableCell className="font-medium min-w-[200px]">
-                    <div className="max-w-[300px] truncate" title={paper.title}>{paper.title}</div>
-                  </TableCell>
-                  <TableCell className="min-w-[150px]">
-                    <div className="text-xs sm:text-sm truncate max-w-[150px]" title={paper.student?.user?.name}>
-                      {paper.student?.user?.name || "Unknown"}
-                    </div>
-                  </TableCell>
-                  <TableCell className="min-w-[130px]">
-                    {paper.members && paper.members.length > 0 ? (
-                      <div className="text-xs sm:text-sm">
-                        {paper.members.length} member{paper.members.length > 1 ? 's' : ''}
-                      </div>
-                    ) : "No members"}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    <Badge variant={getStatusBadgeVariant(paper.status)} className="text-xs">
-                      {paper.status?.replace(/_/g, ' ')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap text-xs sm:text-sm">
-                    {paper.submittedAt ? new Date(paper.submittedAt).toLocaleDateString() : "Not submitted"}
-                  </TableCell>
-                  <TableCell className="min-w-[120px]">
-                    {paper.keywords && paper.keywords.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {paper.keywords.slice(0, 2).map((keyword: string, idx: number) => (
-                          <Badge key={idx} variant="outline" className="text-xs">
-                            {keyword}
-                          </Badge>
-                        ))}
-                        {paper.keywords.length > 2 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{paper.keywords.length - 2}
-                          </Badge>
-                        )}
-                      </div>
-                    ) : "No keywords"}
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap sticky right-0 bg-background z-10">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleViewPaper(paper.id)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel>Change Status</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleUpdateStatus(paper.id, "UNDER_REVIEW")}>
-                          Mark Under Review
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleUpdateStatus(paper.id, "APPROVED")}>
-                          Approve
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleUpdateStatus(paper.id, "REJECTED")}>
-                          Reject
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          onClick={() => { setDeleteId(paper.id); setIsDeleteOpen(true); }} 
-                          className="text-red-600"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+                  </TableHead>
+                  <TableHead className="min-w-[250px]">
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => handleSort("title")} 
+                      className="h-8 px-2 hover:bg-muted/50 text-xs sm:text-sm"
+                    >
+                      Title
+                      {sortField === "title" && (
+                        sortOrder === "asc" ? (
+                          <ChevronUp className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                        ) : (
+                          <ChevronDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                        )
+                      )}
+                      {sortField !== "title" && (
+                        <ChevronsUpDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="min-w-[120px]">
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => handleSort("status")} 
+                      className="h-8 px-2 hover:bg-muted/50 text-xs sm:text-sm"
+                    >
+                      Status
+                      {sortField === "status" && (
+                        sortOrder === "asc" ? (
+                          <ChevronUp className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                        ) : (
+                          <ChevronDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                        )
+                      )}
+                      {sortField !== "status" && (
+                        <ChevronsUpDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="min-w-[150px]">Keywords</TableHead>
+                  <TableHead className="min-w-[100px]">
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => handleSort("members")} 
+                      className="h-8 px-2 hover:bg-muted/50 text-xs sm:text-sm"
+                    >
+                      Members
+                      {sortField === "members" && (
+                        sortOrder === "asc" ? (
+                          <ChevronUp className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                        ) : (
+                          <ChevronDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                        )
+                      )}
+                      {sortField !== "members" && (
+                        <ChevronsUpDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="min-w-[150px]">Student</TableHead>
+                  <TableHead className="min-w-[130px]">
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => handleSort("createdAt")} 
+                      className="h-8 px-2 hover:bg-muted/50 text-xs sm:text-sm"
+                    >
+                      Created
+                      {sortField === "createdAt" && (
+                        sortOrder === "asc" ? (
+                          <ChevronUp className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                        ) : (
+                          <ChevronDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                        )
+                      )}
+                      {sortField !== "createdAt" && (
+                        <ChevronsUpDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="min-w-[130px]">
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => handleSort("updatedAt")} 
+                      className="h-8 px-2 hover:bg-muted/50 text-xs sm:text-sm"
+                    >
+                      Updated
+                      {sortField === "updatedAt" && (
+                        sortOrder === "asc" ? (
+                          <ChevronUp className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                        ) : (
+                          <ChevronDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                        )
+                      )}
+                      {sortField !== "updatedAt" && (
+                        <ChevronsUpDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="w-24">Actions</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              </TableHeader>
+              <TableBody>
+                {paginatedPapers.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={9}
+                      className="text-center py-8 text-muted-foreground"
+                    >
+                      {searchQuery || statusFilter !== "all" 
+                        ? "No papers found. Try adjusting your search or filters."
+                        : "No research papers found."}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  paginatedPapers.map((paper) => (
+                    <TableRow
+                      key={paper.id}
+                      className="hover:bg-muted/50"
+                    >
+                      <TableCell onClick={(e) => e.stopPropagation()} className="">
+                        <Checkbox
+                          checked={selectedIds.includes(paper.id)}
+                          onCheckedChange={() => toggleSelectOne(paper.id)}
+                          aria-label={`Select ${paper.title}`}
+                        />
+                      </TableCell>
+                      <TableCell 
+                        className="font-medium max-w-sm cursor-pointer  "
+                        onClick={() => handleViewPaper(paper.id)}
+                      >
+                        <div className="flex items-start gap-2">
+                          <FileText
+                            className="h-4 w-4 mt-1 flex-shrink-0"
+                            style={{ color: "var(--second-color)" }}
+                          />
+                          <span className="line-clamp-2">{paper.title.length > 30 ? paper.title.substring(0, 30) + "..." : paper.title}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(paper.status)}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {paper.keywords && paper.keywords.length > 0 ? (
+                            <>
+                              {paper.keywords.slice(0, 2).map((keyword: string, index: number) => (
+                                <Badge
+                                  key={index}
+                                  variant="outline"
+                                  className="text-xs"
+                                  style={{
+                                    backgroundColor: "var(--forth-color)",
+                                    color: "var(--first-color)",
+                                  }}
+                                >
+                                  {keyword}
+                                </Badge>
+                              ))}
+                              {paper.keywords.length > 2 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{paper.keywords.length - 2}
+                                </Badge>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No keywords</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Users
+                            className="h-4 w-4"
+                            style={{ color: "var(--second-color)" }}
+                          />
+                          <span>{paper.members?.length || 0}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                            style={{
+                              background:
+                                "linear-gradient(to bottom right, var(--second-color), var(--third-color))",
+                            }}
+                          >
+                            <User className="h-3 w-3 text-white" />
+                          </div>
+                          <span className="text-sm truncate max-w-[100px]">
+                            {paper.student?.user?.name || "Unknown"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatDate(paper.createdAt)}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatDate(paper.updatedAt)}
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()} className="">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleViewPaper(paper.id)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuLabel>Change Status</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleUpdateStatus(paper.id, "UNDER_REVIEW")}>
+                              Mark Under Review
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleUpdateStatus(paper.id, "APPROVED")}>
+                              Approve
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleUpdateStatus(paper.id, "REJECTED")}>
+                              Reject
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => { setDeleteId(paper.id); setIsDeleteOpen(true); }}
+                              className="text-red-600 focus:text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
-      <TablePagination 
-        currentPage={currentPage} 
-        totalPages={totalPages} 
-        totalItems={filteredAndSortedPapers.length} 
-        itemsPerPage={itemsPerPage} 
-        onPageChange={setCurrentPage} 
-      />
+          <div className="mt-4 px-4 pb-4">
+            <TablePagination 
+              currentPage={currentPage} 
+              totalPages={totalPages} 
+              totalItems={filteredAndSortedPapers.length} 
+              itemsPerPage={itemsPerPage} 
+              onPageChange={setCurrentPage} 
+            />
+          </div>
+        </CardContent> 
+      </Card>
 
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <AlertDialogContent>

@@ -8,9 +8,7 @@ import { UserRole } from "@prisma/client";
 const updateSchema = z.object({
   phoneNumber: z.string().optional(),
   address: z.string().optional(),
-  dateOfBirth: z.string().optional().transform(val => val ? new Date(val) : undefined),
-  guardianName: z.string().optional(),
-  guardianPhone: z.string().optional(),
+  bio: z.string().optional(),
 });
 
 // GET: Fetch a particular student's profile by ID
@@ -44,7 +42,7 @@ export async function GET(
             email: true,
             image: true,
             role: true,
-            isActive: true,
+           
             createdAt: true,
             updatedAt: true,
           },
@@ -114,9 +112,7 @@ export async function GET(
       return NextResponse.json({ error: "Student profile not found" }, { status: 404 });
     }
 
-    if (!studentProfile.user.isActive) {
-      return NextResponse.json({ error: "Student profile is inactive" }, { status: 403 });
-    }
+   
 
     // Hide sensitive data for non-owners
     if (!showPrivateData) {
@@ -125,9 +121,6 @@ export async function GET(
           ...studentProfile,
           phoneNumber: undefined,
           address: undefined,
-          dateOfBirth: undefined,
-          guardianName: undefined,
-          guardianPhone: undefined,
         },
       });
     }
@@ -181,7 +174,7 @@ export async function PATCH(
             email: true,
             image: true,
             role: true,
-            isActive: true,
+            
           },
         },
       },

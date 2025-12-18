@@ -4,30 +4,23 @@ import { useState, useEffect } from "react";
 import { TransactionsTable } from "@/components/dashboard/teacher/transaction/TransactionsTable";
 import { StatusGraph } from "@/components/dashboard/teacher/transaction/StatusGraph";
 import { GrowthGraph } from "@/components/dashboard/teacher/transaction/GrowthGraph";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
-import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
+import { fetchTransactions } from "@/lib/api/teacherApi";
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchTransactions();
+    fetchTransac();
   }, []);
 
-  const fetchTransactions = async () => {
+  const fetchTransac = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/teacher/transaction");
-      if (response.ok) {
-        const result = await response.json();
-        setTransactions(result.data || []);
-      } else {
-        toast.error("Failed to fetch transactions");
-      }
+     const response = await fetchTransactions({all: true});
+     setTransactions(response.data);
     } catch (error) {
       console.error("Failed to fetch transactions:", error);
       toast.error("Failed to fetch transactions");
@@ -35,52 +28,40 @@ export default function TransactionsPage() {
       setIsLoading(false);
     }
   };
+  if (isLoading) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-4 md:p-6">
+        <Loader2 className="animate-spin text-[var(--first-color)]" size={48} />
+      </div>
+    );
+  }
 
   return (
-    <>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem className="hidden md:block">
-              <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator className="hidden md:block" />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Transactions</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
-
-      <div className="flex flex-1 flex-col gap-4 p-4 md:p-6 lg:p-8">
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold">Transaction Records</h1>
-            <p className="text-muted-foreground mt-2">Track and manage your transaction records</p>
-          </div>
-
-          {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin" />
+    <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
+      <div>
+        <h1 className="text-2xl md:text-4xl font-bold text-[var(--first-color)]">Transaction Records</h1>
+        <p className="text-sm md:text-base text-muted-foreground">Track and manage your transaction records</p>
+      </div>
+      <div className="w-full h-full min-w-0">
+        <div className="flex flex-col w-full h-full gap-4 min-w-0">
+          {/* Top section with two columns */}
+          <div className="flex flex-col lg:flex-row w-full gap-4">
+            <div className="w-full lg:w-1/3">
+              <StatusGraph transactions={transactions} />
             </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-                <div className="lg:col-span-1">
-                  <StatusGraph transactions={transactions} />
-                </div>
-                <div className="lg:col-span-3">
-                  <GrowthGraph transactions={transactions} />
-                </div>
-              </div>
-
+            <div className="w-full lg:w-2/3">
+              <GrowthGraph transactions={transactions} />
+            </div>
+          </div>
+          
+          {/* Bottom section */}
+         
+            <div className="w-full flex-1 rounded-lg min-h-[300px] overflow-hidden min-w-0">
               <TransactionsTable />
-            </>
-          )}
+            </div>
+          
         </div>
       </div>
-    </>
+    </div>
   );
 }

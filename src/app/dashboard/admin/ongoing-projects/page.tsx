@@ -39,7 +39,7 @@ export default function AdminOngoingProjectsPage() {
             Manage all student projects across the institution
           </p>
         </div>
-        <OngoingProjectsTable />
+        <OngoingProjectsTable projects={[]} />
       </div>
     </>
   );

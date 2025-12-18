@@ -6,7 +6,6 @@ import { z } from "zod";
 import { PublicationStatus } from "@prisma/client";
 
 const updateSchema = z.object({
-  title: z.string().min(3).optional(),
   isPublic: z.boolean().optional(),
   conferenceName: z.string().optional(),
   mode: z.string().optional(),

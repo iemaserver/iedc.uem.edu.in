@@ -92,14 +92,35 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   callbacks: {
     async signIn({ user, account, profile }) {
-      if (account?.provider === "google" || account?.provider === "credentials") {
-        try {
-          // Determine user role from FacultyUser table
-          const userRole = await determineUserRole(user.email!);
+      try {
+        // Just return true, we'll handle profile creation in jwt callback
+        return true;
+      } catch (error) {
+        console.error("SignIn callback error:", error);
+        return false;
+      }
+    },
+    async jwt({ token, user, trigger, account }) {
+      try {
+        // When user first signs in, user object will be present
+        if (user) {
+          token.id = user.id;
+          token.name = user.name;
+          token.email = user.email;
+          token.role = user.role;
+          token.image = user.image;
 
-          // Find the user
+          // Determine correct role from FacultyUser table
+          const userRole = await determineUserRole(user.email!);
+          token.role = userRole;
+
+          // Find the user in database
           const dbUser = await prisma.user.findUnique({
             where: { email: user.email! },
+            include: {
+              studentProfile: true,
+              teacherProfile: true,
+            },
           });
 
           if (dbUser) {
@@ -111,35 +132,47 @@ export const authOptions: NextAuthOptions = {
               });
             }
 
-            // Ensure appropriate profile exists
-            await ensureUserProfile(dbUser.id, userRole, user.email!);
+            // Check if profile needs completion (don't auto-create)
+            const needsProfile = 
+              (userRole === UserRole.TEACHER && !dbUser.teacherProfile) ||
+              (userRole === UserRole.STUDENT && !dbUser.studentProfile);
+            
+            token.needsProfile = needsProfile;
           }
-        } catch (error) {
-          console.error("Error in signIn callback:", error);
-          // Still allow sign-in even if profile creation fails
-          // Profile will be created on next attempt or can be handled separately
         }
-      }
-      return true;
-    },
-    async jwt({ token, user, trigger }) {
-      if (user) {
-        token.id = user.id;
-        token.name = user.name;
-        token.email = user.email;
-        token.role = user.role;
-        token.image = user.image;
-      }
-      
-      // Re-check faculty role on each token refresh
-      if (token.email) {
-        const facultyUser = await prisma.facultyUser.findUnique({
-          where: { email: token.email },
-        });
         
-        if (facultyUser) {
-          token.role = facultyUser.role;
+        // Re-check faculty role and profile status on each token refresh
+        if (token.email && !user) {
+          const facultyUser = await prisma.facultyUser.findUnique({
+            where: { email: token.email },
+          });
+          
+          if (facultyUser) {
+            token.role = facultyUser.role;
+          }
+
+          // Re-check if profile completion is still needed
+          if (token.id && token.role !== "ADMIN") {
+            const dbUser = await prisma.user.findUnique({
+              where: { id: token.id as string },
+              include: {
+                studentProfile: true,
+                teacherProfile: true,
+              },
+            });
+
+            if (dbUser) {
+              const needsProfile = 
+                (token.role === "TEACHER" && !dbUser.teacherProfile) ||
+                (token.role === "STUDENT" && !dbUser.studentProfile);
+              
+              token.needsProfile = needsProfile;
+            }
+          }
         }
+      } catch (error) {
+        console.error("JWT callback error:", error);
+        // Return token as-is if there's an error to prevent auth failure
       }
       
       return token;
@@ -151,6 +184,7 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string;
         session.user.role = token.role as UserRole;
         session.user.image = token.image as string;
+        session.user.needsProfile = token.needsProfile as boolean | undefined;
       }
       return session;
     },
@@ -158,5 +192,11 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/signup",
     error: "/signup",
+  },
+  events: {
+    async signIn({ user, account }) {
+      // This runs after successful authentication
+      console.log("User signed in:", user.email);
+    },
   },
 };
